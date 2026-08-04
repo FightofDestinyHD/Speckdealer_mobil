@@ -5,25 +5,107 @@
 	android:layout_height="match_parent"
 	android:padding="24dp">
 
-	<TextView
-		android:id="@+id/titleText"
-		android:layout_width="0dp"
+	<LinearLayout
+		android:id="@+id/welcomeContainer"
+		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="@string/app_name"
-		android:textAppearance="@style/TextAppearance.MaterialComponents.Headline4"
+		android:gravity="center"
+		android:orientation="vertical"
+		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent" />
+		app:layout_constraintTop_toTopOf="parent">
 
-	<TextView
-		android:id="@+id/subtitleText"
-		android:layout_width="0dp"
+		<ImageView
+			android:id="@+id/logoImage"
+			android:layout_width="120dp"
+			android:layout_height="120dp"
+			android:contentDescription="@string/app_name"
+			android:src="@mipmap/ic_launcher" />
+
+		<TextView
+			android:id="@+id/welcomeText"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="16dp"
+			android:text="@string/welcome"
+			android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5" />
+	</LinearLayout>
+
+	<GridLayout
+		android:id="@+id/menuContainer"
+		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="16dp"
-		android:text="@string/tablet_ready"
-		android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+		android:alignmentMode="alignMargins"
+		android:alpha="0"
+		android:columnCount="4"
+		android:rowCount="2"
+		android:useDefaultMargins="true"
+		android:visibility="gone"
+		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@id/titleText" />
+		app:layout_constraintTop_toTopOf="parent">
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="1" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="2" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="3" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="4" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="5" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="6" />
+
+		<TextView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:gravity="center"
+			android:text="7" />
+
+		<TextView
+			android:id="@+id/updateTile"
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:background="@drawable/menu_tile_background"
+			android:clickable="true"
+			android:focusable="true"
+			android:foreground="?attr/selectableItemBackground"
+			android:gravity="center"
+			android:text="@string/update_tile" />
+	</GridLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
