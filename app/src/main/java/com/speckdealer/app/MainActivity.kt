@@ -105,12 +105,10 @@ class MainActivity : AppCompatActivity() {
 			if (isImmediateUpdateAvailable(freshInfo)) {
 				startImmediateUpdate(freshInfo)
 			} else {
-				Snackbar.make(
-					findViewById(android.R.id.content),
-					getString(R.string.no_update_available),
-					Snackbar.LENGTH_SHORT
-				).show()
+				openLatestReleasePage()
 			}
+		}.addOnFailureListener {
+			openLatestReleasePage()
 		}
 	}
 
