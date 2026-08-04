@@ -24,3 +24,4 @@ Thumbs.db
 # Keystore files
 *.jks
 *.keystore
+*.base64
