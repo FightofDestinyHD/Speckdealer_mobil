@@ -52,7 +52,7 @@
 			android:layout_height="72dp"
 			android:background="@drawable/menu_tile_background"
 			android:gravity="center"
-			android:text="1" />
+			android:text="@string/tile_sales" />
 
 		<TextView
 			android:layout_width="72dp"
@@ -80,7 +80,7 @@
 			android:layout_height="72dp"
 			android:background="@drawable/menu_tile_background"
 			android:gravity="center"
-			android:text="5" />
+			android:text="@string/tile_item_maintenance" />
 
 		<TextView
 			android:layout_width="72dp"
@@ -94,18 +94,33 @@
 			android:layout_height="72dp"
 			android:background="@drawable/menu_tile_background"
 			android:gravity="center"
-			android:text="7" />
+			android:text="@string/tile_archive" />
 
-		<TextView
+		<FrameLayout
 			android:id="@+id/updateTile"
 			android:layout_width="72dp"
 			android:layout_height="72dp"
 			android:background="@drawable/menu_tile_background"
 			android:clickable="true"
 			android:focusable="true"
-			android:foreground="?attr/selectableItemBackground"
-			android:gravity="center"
-			android:text="@string/update_tile" />
+			android:foreground="?attr/selectableItemBackground">
+
+			<ImageView
+				android:layout_width="44dp"
+				android:layout_height="44dp"
+				android:layout_gravity="center"
+				android:src="@android:drawable/ic_popup_sync"
+				android:tint="#FF606060" />
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="center"
+				android:text="@string/update_tile"
+				android:textColor="#FF303030"
+				android:textSize="10sp"
+				android:textStyle="bold" />
+		</FrameLayout>
 	</GridLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

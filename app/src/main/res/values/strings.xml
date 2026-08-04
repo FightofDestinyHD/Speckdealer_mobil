@@ -1,8 +1,17 @@
 <resources>
 	<string name="app_name">Speckdealer App</string>
 	<string name="welcome">Willkommen</string>
+	<string name="tile_sales">Verkauf</string>
+	<string name="tile_item_maintenance">Artikelpflege</string>
+	<string name="tile_archive">Archiv</string>
 	<string name="update_tile">Update</string>
 	<string name="update_available">Update verfügbar. Installation kann über den Update-Kanal erfolgen.</string>
 	<string name="no_update_available">Aktuell ist kein Update verfügbar.</string>
 	<string name="update_start_failed">Update konnte nicht gestartet werden.</string>
+	<string name="changelog_title">Changelog</string>
+	<string name="changelog_message">Version %1$s
+• Neues Start-Intro mit weichem Übergang
+• 8-Kachel-Menü zentriert dargestellt
+• Update-Kachel mit direktem Update-Start
+• Kacheln: Verkauf, Artikelpflege, Archiv benannt</string>
 </resources>

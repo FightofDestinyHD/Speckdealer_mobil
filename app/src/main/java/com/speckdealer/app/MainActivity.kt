@@ -2,6 +2,7 @@ package com.speckdealer.app
 
 import android.os.Bundle
 import android.view.View
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
@@ -20,6 +21,7 @@ class MainActivity : AppCompatActivity() {
 		setContentView(R.layout.activity_main)
 		appUpdateManager = AppUpdateManagerFactory.create(this)
 		setupUpdateTile()
+		showChangelogIfUpdated()
 		startIntroTransition()
 	}
 
@@ -32,6 +34,22 @@ class MainActivity : AppCompatActivity() {
 		findViewById<View>(R.id.updateTile).setOnClickListener {
 			startImmediateUpdateIfAvailable()
 		}
+	}
+
+	private fun showChangelogIfUpdated() {
+		val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+		val currentVersionCode = packageManager.getPackageInfo(packageName, 0).longVersionCode
+		val lastVersionCode = preferences.getLong(KEY_LAST_VERSION_CODE, 0L)
+
+		if (lastVersionCode != 0L && currentVersionCode > lastVersionCode) {
+			AlertDialog.Builder(this)
+				.setTitle(R.string.changelog_title)
+				.setMessage(getString(R.string.changelog_message, BuildConfig.VERSION_NAME))
+				.setPositiveButton(android.R.string.ok, null)
+				.show()
+		}
+
+		preferences.edit().putLong(KEY_LAST_VERSION_CODE, currentVersionCode).apply()
 	}
 
 	private fun startIntroTransition() {
@@ -112,5 +130,7 @@ class MainActivity : AppCompatActivity() {
 
 	companion object {
 		private const val UPDATE_REQUEST_CODE = 1001
+		private const val PREFERENCES_NAME = "speckdealer_prefs"
+		private const val KEY_LAST_VERSION_CODE = "last_version_code"
 	}
 }
