@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+.gradle-dist/
+.gradle-tmp/
+gradle-*.zip
+build/
+**/build/
+
+# Local config
+local.properties
+
+# Android Studio / IntelliJ
+.vs/
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keystore files
+*.jks
+*.keystore

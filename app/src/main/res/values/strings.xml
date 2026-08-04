@@ -1,0 +1,5 @@
+<resources>
+	<string name="app_name">Speckdealer App</string>
+	<string name="tablet_ready">Tablet-optimiertes Grundgerüst ist bereit.</string>
+	<string name="update_available">Update verfügbar. Installation kann über den Update-Kanal erfolgen.</string>
+</resources>
