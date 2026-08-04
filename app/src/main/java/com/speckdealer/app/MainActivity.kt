@@ -10,6 +10,7 @@ import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -62,7 +63,7 @@ class MainActivity : AppCompatActivity() {
 
 	private fun showChangelogIfUpdated() {
 		val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
-		val currentVersionCode = packageManager.getPackageInfo(packageName, 0).longVersionCode
+		val currentVersionCode = PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
 		val currentVersionName = BuildConfig.VERSION_NAME
 		val lastVersionCode = preferences.getLong(KEY_LAST_VERSION_CODE, 0L)
 		val lastVersionName = preferences.getString(KEY_LAST_VERSION_NAME, null)
