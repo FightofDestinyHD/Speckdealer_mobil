@@ -17,6 +17,7 @@ import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
+import com.speckdealer.app.data.AppGraph
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -31,6 +32,10 @@ class MainActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_main)
 		appUpdateManager = AppUpdateManagerFactory.create(this)
+
+		// Datenbank asynchron im Hintergrund initialisieren
+		AppGraph.initializeDatabaseAsync(this)
+
 		setupMenuTiles()
 		showChangelogIfUpdated()
 		startIntroTransition()
