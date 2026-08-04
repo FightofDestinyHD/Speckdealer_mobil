@@ -30,15 +30,33 @@ class MainActivity : AppCompatActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
-		setContentView(R.layout.activity_main)
-		appUpdateManager = AppUpdateManagerFactory.create(this)
+		try {
+			setContentView(R.layout.activity_main)
+		} catch (e: Exception) {
+			e.printStackTrace()
+			return
+		}
+
+		try {
+			appUpdateManager = AppUpdateManagerFactory.create(this)
+		} catch (e: Exception) {
+			e.printStackTrace()
+		}
 
 		// Datenbank asynchron im Hintergrund initialisieren
-		AppGraph.initializeDatabaseAsync(this)
+		try {
+			AppGraph.initializeDatabaseAsync(this)
+		} catch (e: Exception) {
+			e.printStackTrace()
+		}
 
-		setupMenuTiles()
-		showChangelogIfUpdated()
-		startIntroTransition()
+		try {
+			setupMenuTiles()
+			showChangelogIfUpdated()
+			startIntroTransition()
+		} catch (e: Exception) {
+			e.printStackTrace()
+		}
 	}
 
 	override fun onResume() {
@@ -49,65 +67,96 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun setupMenuTiles() {
-		findViewById<View>(R.id.salesTile).setOnClickListener {
-			startActivity(Intent(this, SalesActivity::class.java))
-		}
-
-		findViewById<View>(R.id.articleManagementTile).setOnClickListener {
-			startActivity(Intent(this, ArticleManagementActivity::class.java))
-		}
-
-		findViewById<View>(R.id.updateTile).setOnClickListener {
-			if (isInstalledFromPlayStore()) {
-				startImmediateUpdateIfAvailable()
-			} else {
-				downloadAndInstallLatestRelease()
+		try {
+			findViewById<View>(R.id.salesTile).setOnClickListener {
+				try {
+					startActivity(Intent(this, SalesActivity::class.java))
+				} catch (e: Exception) {
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
 			}
+
+			findViewById<View>(R.id.articleManagementTile).setOnClickListener {
+				try {
+					startActivity(Intent(this, ArticleManagementActivity::class.java))
+				} catch (e: Exception) {
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
+			}
+
+			findViewById<View>(R.id.updateTile).setOnClickListener {
+				try {
+					if (isInstalledFromPlayStore()) {
+						startImmediateUpdateIfAvailable()
+					} else {
+						downloadAndInstallLatestRelease()
+					}
+				} catch (e: Exception) {
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Update: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
+			}
+		} catch (e: Exception) {
+			e.printStackTrace()
 		}
 	}
 
 	private fun showChangelogIfUpdated() {
-		val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
-		val currentVersionCode = PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
-		val currentVersionName = BuildConfig.VERSION_NAME
-		val lastVersionCode = preferences.getLong(KEY_LAST_VERSION_CODE, 0L)
-		val lastVersionName = preferences.getString(KEY_LAST_VERSION_NAME, null)
+		try {
+			val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+			val currentVersionCode = PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
+			val currentVersionName = BuildConfig.VERSION_NAME
+			val lastVersionCode = preferences.getLong(KEY_LAST_VERSION_CODE, 0L)
+			val lastVersionName = preferences.getString(KEY_LAST_VERSION_NAME, null)
 
-		val isFirstRun = lastVersionCode == 0L && lastVersionName == null
-		val isUpdated = !isFirstRun && (currentVersionCode > lastVersionCode || currentVersionName != lastVersionName)
+			val isFirstRun = lastVersionCode == 0L && lastVersionName == null
+			val isUpdated = !isFirstRun && (currentVersionCode > lastVersionCode || currentVersionName != lastVersionName)
 
-		if (isUpdated) {
-			AlertDialog.Builder(this)
-				.setTitle(R.string.changelog_title)
-				.setMessage(getString(R.string.changelog_message, BuildConfig.VERSION_NAME))
-				.setPositiveButton(android.R.string.ok, null)
-				.show()
+			if (isUpdated) {
+				AlertDialog.Builder(this)
+					.setTitle(R.string.changelog_title)
+					.setMessage(getString(R.string.changelog_message, BuildConfig.VERSION_NAME))
+					.setPositiveButton(android.R.string.ok, null)
+					.show()
+			}
+
+			preferences.edit()
+				.putLong(KEY_LAST_VERSION_CODE, currentVersionCode)
+				.putString(KEY_LAST_VERSION_NAME, currentVersionName)
+				.apply()
+		} catch (e: Exception) {
+			e.printStackTrace()
 		}
-
-		preferences.edit()
-			.putLong(KEY_LAST_VERSION_CODE, currentVersionCode)
-			.putString(KEY_LAST_VERSION_NAME, currentVersionName)
-			.apply()
 	}
 
 	private fun startIntroTransition() {
-		val welcomeContainer = findViewById<View>(R.id.welcomeContainer)
-		val menuContainer = findViewById<View>(R.id.menuContainer)
+		try {
+			val welcomeContainer = findViewById<View>(R.id.welcomeContainer)
+			val menuContainer = findViewById<View>(R.id.menuContainer)
 
-		welcomeContainer.animate()
-			.alpha(0f)
-			.setStartDelay(1300)
-			.setDuration(700)
-			.withEndAction {
-				welcomeContainer.visibility = View.GONE
-				menuContainer.visibility = View.VISIBLE
-				menuContainer.alpha = 0f
-				menuContainer.animate()
-					.alpha(1f)
-					.setDuration(450)
-					.start()
-			}
-			.start()
+			welcomeContainer.animate()
+				.alpha(0f)
+				.setStartDelay(1300)
+				.setDuration(700)
+				.withEndAction {
+					try {
+						welcomeContainer.visibility = View.GONE
+						menuContainer.visibility = View.VISIBLE
+						menuContainer.alpha = 0f
+						menuContainer.animate()
+							.alpha(1f)
+							.setDuration(450)
+							.start()
+					} catch (e: Exception) {
+						e.printStackTrace()
+					}
+				}
+				.start()
+		} catch (e: Exception) {
+			e.printStackTrace()
+		}
 	}
 
 	private fun checkForImmediateUpdate() {
