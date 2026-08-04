@@ -1,5 +1,7 @@
 package com.speckdealer.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -27,12 +29,18 @@ class MainActivity : AppCompatActivity() {
 
 	override fun onResume() {
 		super.onResume()
-		checkForImmediateUpdate()
+		if (isInstalledFromPlayStore()) {
+			checkForImmediateUpdate()
+		}
 	}
 
 	private fun setupUpdateTile() {
 		findViewById<View>(R.id.updateTile).setOnClickListener {
-			startImmediateUpdateIfAvailable()
+			if (isInstalledFromPlayStore()) {
+				startImmediateUpdateIfAvailable()
+			} else {
+				openLatestReleasePage()
+			}
 		}
 	}
 
@@ -123,14 +131,30 @@ class MainActivity : AppCompatActivity() {
 		}
 	}
 
+	private fun openLatestReleasePage() {
+		val intent = Intent(Intent.ACTION_VIEW, Uri.parse(RELEASES_URL))
+		startActivity(intent)
+		Snackbar.make(
+			findViewById(android.R.id.content),
+			getString(R.string.update_external_info),
+			Snackbar.LENGTH_LONG
+		).show()
+	}
+
 	private fun isImmediateUpdateAvailable(info: AppUpdateInfo): Boolean {
 		return info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
 			info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+	}
+
+	private fun isInstalledFromPlayStore(): Boolean {
+		val installer = packageManager.getInstallerPackageName(packageName)
+		return installer == "com.android.vending"
 	}
 
 	companion object {
 		private const val UPDATE_REQUEST_CODE = 1001
 		private const val PREFERENCES_NAME = "speckdealer_prefs"
 		private const val KEY_LAST_VERSION_CODE = "last_version_code"
+		private const val RELEASES_URL = "https://github.com/FightofDestinyHD/Speckdealer_mobil/releases/latest"
 	}
 }
