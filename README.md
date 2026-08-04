@@ -1,11 +1,11 @@
 # Speckdealer App (Android)
 
-Android-Tablet-optimiertes Grundgerüst mit automatisiertem Build-Workflow.
+Android-Tablet-optimiertes Grundgerüst mit lokalem Build und automatisiertem Upload/Release-Workflow.
 
 ## Voraussetzungen
 - Android Studio (aktuelle stabile Version)
 - Android SDK Platform 31
-- JDK 11 (für CI bereits gesetzt)
+- JDK 17 lokal für Build/Signierung
 
 ## Lokal starten
 1. Projekt in Android Studio öffnen.
@@ -16,29 +16,28 @@ Android-Tablet-optimiertes Grundgerüst mit automatisiertem Build-Workflow.
 - Standardlayout: `app/src/main/res/layout/activity_main.xml`
 - Tabletlayout (`sw600dp`): `app/src/main/res/layout-sw600dp/activity_main.xml`
 
-## Automatisierte Updates / Delivery-Basis
+## Lokaler Build (verbindlich)
+Builds werden lokal erzeugt, dann hochgeladen/released.
+
+1. Lokal Release bauen:
+   - `./gradlew :app:assembleRelease :app:bundleRelease`
+2. Artefakte ins Repo kopieren:
+   - `release-artifacts/app-release.apk`
+   - `release-artifacts/app-release.aab`
+3. Commit + Push der Artefakte.
+
+## Upload-Workflow (ohne Cloud-Build)
 - Workflow: `.github/workflows/android-ci.yml`
-- Bei Push/PR werden automatisch erzeugt:
-  - Debug-APK (`app-debug-apk`)
-  - Release-AAB (`app-release-aab`)
-- Diese Artefakte können als verteilter Build genutzt werden.
+- Zweck: prüft nur, ob lokale Artefakte vorhanden sind, und lädt diese als Workflow-Artefakte hoch.
 
-## Automatisiertes signiertes Release
-Zusätzlich zum CI-Workflow gibt es einen Release-Workflow: `.github/workflows/android-release.yml`.
-
-Trigger:
-- Tag-Push wie `v1.0.0`
-- manuell per `workflow_dispatch`
-
-Benötigte Repository-Secrets:
-- `KEYSTORE_BASE64` (Base64-kodierter Inhalt der `.jks`)
-- `KEYSTORE_PASSWORD`
-- `KEY_ALIAS`
-- `KEY_PASSWORD`
-
-Der Workflow baut signierte Artefakte und veröffentlicht sie als GitHub Release:
-- Release-APK
-- Release-AAB
+## Release-Workflow (ohne Cloud-Build)
+- Workflow: `.github/workflows/android-release.yml`
+- Trigger:
+  - Tag-Push wie `v1.0.0`
+  - manuell per `workflow_dispatch`
+- Zweck: erstellt GitHub Release direkt aus
+  - `release-artifacts/app-release.apk`
+  - `release-artifacts/app-release.aab`
 
 ## Nächster Schritt für echte Auto-Updates
 Für echte automatische Endnutzer-Updates auf Tablets ist ein fester Kanal nötig (z. B. Google Play Internal Track + In-App-Updates).

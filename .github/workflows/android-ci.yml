@@ -1,49 +1,29 @@
-name: Android CI
+name: Android Upload Check
 
 on:
-  push:
-    branches: ["main", "master", "develop"]
-  pull_request:
-    branches: ["main", "master", "develop"]
   workflow_dispatch:
 
 jobs:
-  build:
+  verify-local-artifacts:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: Check local release artifacts exist
+        run: |
+          test -f release-artifacts/app-release.apk
+          test -f release-artifacts/app-release.aab
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android platform
-        run: sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
-
-      - name: Ensure Gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon
-
-      - name: Build release bundle
-        run: ./gradlew :app:bundleRelease --no-daemon
-
-      - name: Upload APK
+      - name: Upload local APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: app-release-apk-local
+          path: release-artifacts/app-release.apk
 
-      - name: Upload AAB
+      - name: Upload local AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-aab
-          path: app/build/outputs/bundle/release/*.aab
+          name: app-release-aab-local
+          path: release-artifacts/app-release.aab
