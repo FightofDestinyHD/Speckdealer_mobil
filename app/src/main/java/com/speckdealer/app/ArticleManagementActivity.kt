@@ -25,7 +25,7 @@ import java.util.Locale
 
 class ArticleManagementActivity : AppCompatActivity() {
 
-	private val repository: ArticleRepository by lazy { AppGraph.repository(this) }
+	private var repository: ArticleRepository? = null
 	private lateinit var adapter: ArticleAdapter
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private var observeJob: Job? = null
@@ -59,7 +59,18 @@ class ArticleManagementActivity : AppCompatActivity() {
 		setupRecyclerView()
 		setupCategoryButtons()
 		setupFormActions()
-		selectCategory(CategoryType.WEIN)
+
+		// Repository mit Error-Handling laden
+		try {
+			repository = AppGraph.repository(this)
+		} catch (e: Exception) {
+			e.printStackTrace()
+			Snackbar.make(findViewById(android.R.id.content), "Fehler beim Laden der Datenbank", Snackbar.LENGTH_LONG).show()
+		}
+
+		if (repository != null) {
+			selectCategory(CategoryType.WEIN)
+		}
 	}
 
 	private fun setupViews() {
@@ -105,6 +116,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun selectCategory(categoryType: CategoryType) {
+		if (repository == null) return // Repository noch nicht bereit
 		selectedCategory = categoryType
 		selectedCategoryTitle.text = "Kategorie: ${categoryType.displayName}"
 		configureFormForCategory(categoryType)
@@ -113,10 +125,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun observeCategory(categoryType: CategoryType) {
+		if (repository == null) return
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
-			repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
-				adapter.submitList(articles)
+			try {
+				repository!!.observeArticlesByCategory(categoryType).collectLatest { articles ->
+					adapter.submitList(articles)
+				}
+			} catch (e: Exception) {
+				e.printStackTrace()
 			}
 		}
 	}
@@ -135,6 +152,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun saveArticle() {
+		if (repository == null) {
+			showMessage("Datenbank wird noch geladen...")
+			return
+		}
 		val name = articleNameInput.text.toString().trim()
 		if (name.isEmpty()) {
 			showMessage("Bitte Artikelname eingeben")
@@ -165,14 +186,21 @@ class ArticleManagementActivity : AppCompatActivity() {
 		editingArticleId?.let { article.id = it }
 
 		lifecycleScope.launch(Dispatchers.IO) {
-			if (editingArticleId == null) {
-				repository.saveArticle(article)
-			} else {
-				repository.updateArticle(article)
-			}
-			launch(Dispatchers.Main) {
-				showMessage("Artikel gespeichert")
-				clearForm()
+			try {
+				if (editingArticleId == null) {
+					repository!!.saveArticle(article)
+				} else {
+					repository!!.updateArticle(article)
+				}
+				launch(Dispatchers.Main) {
+					showMessage("Artikel gespeichert")
+					clearForm()
+				}
+			} catch (e: Exception) {
+				e.printStackTrace()
+				launch(Dispatchers.Main) {
+					showMessage("Fehler: ${e.localizedMessage}")
+				}
 			}
 		}
 	}

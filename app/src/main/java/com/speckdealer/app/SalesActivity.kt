@@ -22,7 +22,7 @@ import java.util.Locale
 
 class SalesActivity : AppCompatActivity() {
 
-	private val repository: ArticleRepository by lazy { AppGraph.repository(this) }
+	private var repository: ArticleRepository? = null
 	private lateinit var tabLayout: TabLayout
 	private lateinit var salesInfoText: TextView
 	private lateinit var adapter: SalesArticleAdapter
@@ -39,6 +39,13 @@ class SalesActivity : AppCompatActivity() {
 			salesInfoText = findViewById(R.id.salesSelectionInfo)
 			setupRecyclerView()
 			setupTabs()
+			// Repository mit Error-Handling laden
+			try {
+				repository = AppGraph.repository(this)
+			} catch (e: Exception) {
+				e.printStackTrace()
+				salesInfoText.text = "Fehler beim Laden der Datenbank: ${e.localizedMessage}"
+			}
 		} catch (e: Exception) {
 			e.printStackTrace()
 		}
@@ -87,17 +94,21 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	private fun selectCategory(categoryType: CategoryType) {
+		if (repository == null) {
+			salesInfoText.text = "Datenbank wird noch geladen..."
+			return
+		}
 		selectedCategory = categoryType
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
 			try {
-				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
+				repository!!.observeArticlesByCategory(categoryType).collectLatest { articles ->
 					adapter.submitList(articles)
 					salesInfoText.text = "${categoryType.getDisplayName()}: ${articles.size} Artikel"
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
-				salesInfoText.text = "Fehler beim Laden: ${e.message}"
+				salesInfoText.text = "Fehler beim Laden: ${e.localizedMessage}"
 			}
 		}
 	}
@@ -166,10 +177,14 @@ class SalesActivity : AppCompatActivity() {
 		applyDeposit: Boolean,
 		depositTypeToken: String?
 	) {
+		if (repository == null) {
+			salesInfoText.text = "Fehler: Datenbank nicht verfügbar"
+			return
+		}
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
 				val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
-					repository.getDepositArticleForType(depositTypeToken)
+					repository!!.getDepositArticleForType(depositTypeToken)
 				} else {
 					null
 				}
@@ -188,7 +203,7 @@ class SalesActivity : AppCompatActivity() {
 			} catch (e: Exception) {
 				e.printStackTrace()
 				withContext(Dispatchers.Main) {
-					salesInfoText.text = "Fehler: ${e.message}"
+					salesInfoText.text = "Fehler: ${e.localizedMessage}"
 				}
 			}
 		}
