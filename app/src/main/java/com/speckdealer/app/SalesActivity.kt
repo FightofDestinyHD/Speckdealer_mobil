@@ -38,6 +38,11 @@ class SalesActivity : AppCompatActivity() {
 		salesInfoText = findViewById(R.id.salesSelectionInfo)
 		setupRecyclerView()
 		setupTabs()
+
+		// Kategorie vorsichtig initialisieren
+		lifecycleScope.launch {
+			selectCategory(CategoryType.WEIN)
+		}
 	}
 
 	private fun setupRecyclerView() {
@@ -49,23 +54,28 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	private fun setupTabs() {
-		val salesCategories = CategoryType.defaultOrder().filter { it != CategoryType.PFAND }
-		salesCategories.forEach { category ->
-			tabLayout.addTab(tabLayout.newTab().setText(category.displayName).setTag(category))
-		}
-
-		tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-			override fun onTabSelected(tab: TabLayout.Tab) {
-				val category = tab.tag as? CategoryType ?: return
-				selectCategory(category)
+		try {
+			val salesCategories = CategoryType.defaultOrder().filter { it != CategoryType.PFAND }
+			salesCategories.forEach { category ->
+				tabLayout.addTab(tabLayout.newTab().setText(category.displayName).setTag(category))
 			}
 
-			override fun onTabUnselected(tab: TabLayout.Tab) = Unit
-			override fun onTabReselected(tab: TabLayout.Tab) = Unit
-		})
+			tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+				override fun onTabSelected(tab: TabLayout.Tab) {
+					val category = tab.tag as? CategoryType ?: return
+					selectCategory(category)
+				}
 
-		if (tabLayout.tabCount > 0) {
-			tabLayout.getTabAt(0)?.select()
+				override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+				override fun onTabReselected(tab: TabLayout.Tab) = Unit
+			})
+
+			if (tabLayout.tabCount > 0) {
+				tabLayout.getTabAt(0)?.select()
+			}
+		} catch (e: Exception) {
+			e.printStackTrace()
+			salesInfoText.text = "Fehler beim Laden der Kategorien: ${e.message}"
 		}
 	}
 
@@ -73,9 +83,14 @@ class SalesActivity : AppCompatActivity() {
 		selectedCategory = categoryType
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
-			repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
-				adapter.submitList(articles)
-				salesInfoText.text = "${categoryType.displayName}: ${articles.size} Artikel"
+			try {
+				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
+					adapter.submitList(articles)
+					salesInfoText.text = "${categoryType.displayName}: ${articles.size} Artikel"
+				}
+			} catch (e: Exception) {
+				e.printStackTrace()
+				salesInfoText.text = "Fehler beim Laden: ${e.message}"
 			}
 		}
 	}
@@ -145,22 +160,29 @@ class SalesActivity : AppCompatActivity() {
 		depositTypeToken: String?
 	) {
 		lifecycleScope.launch(Dispatchers.IO) {
-			val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
-				repository.getDepositArticleForType(depositTypeToken)
-			} else {
-				null
-			}
-			val totalCents = article.priceCents + (depositArticle?.priceCents ?: 0)
-			val depositText = if (depositArticle != null) {
-				" + Pfand ${currencyFormatter.format(depositArticle.priceCents / 100.0)} (${depositArticle.name})"
-			} else if (applyDeposit) {
-				" + Pfandtyp '$depositTypeToken' nicht gefunden"
-			} else {
-				""
-			}
+			try {
+				val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
+					repository.getDepositArticleForType(depositTypeToken)
+				} else {
+					null
+				}
+				val totalCents = article.priceCents + (depositArticle?.priceCents ?: 0)
+				val depositText = if (depositArticle != null) {
+					" + Pfand ${currencyFormatter.format(depositArticle.priceCents / 100.0)} (${depositArticle.name})"
+				} else if (applyDeposit) {
+					" + Pfandtyp '$depositTypeToken' nicht gefunden"
+				} else {
+					""
+				}
 
-			withContext(Dispatchers.Main) {
-				salesInfoText.text = "Ausgewählt: $displayName${depositText} = ${currencyFormatter.format(totalCents / 100.0)}"
+				withContext(Dispatchers.Main) {
+					salesInfoText.text = "Ausgewählt: $displayName${depositText} = ${currencyFormatter.format(totalCents / 100.0)}"
+				}
+			} catch (e: Exception) {
+				e.printStackTrace()
+				withContext(Dispatchers.Main) {
+					salesInfoText.text = "Fehler: ${e.message}"
+				}
 			}
 		}
 	}
