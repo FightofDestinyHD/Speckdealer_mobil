@@ -28,7 +28,11 @@ public class ArticleRepository {
 	}
 
 	public ArticleEntity getDepositArticleForType(String typeToken) {
-		return articleDao.findDepositArticleByTypeToken(typeToken);
+		try {
+			return articleDao.findDepositArticleByTypeToken(typeToken);
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 	public long saveArticle(ArticleEntity article) {

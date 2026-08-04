@@ -34,12 +34,19 @@ class SalesActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_sales)
 
-		tabLayout = findViewById(R.id.salesTabLayout)
-		salesInfoText = findViewById(R.id.salesSelectionInfo)
-		setupRecyclerView()
-		setupTabs()
+		try {
+			tabLayout = findViewById(R.id.salesTabLayout)
+			salesInfoText = findViewById(R.id.salesSelectionInfo)
+			setupRecyclerView()
+			setupTabs()
+		} catch (e: Exception) {
+			e.printStackTrace()
+		}
+	}
 
-		// Kategorie vorsichtig initialisieren
+	override fun onStart() {
+		super.onStart()
+		// Initiales Laden der ersten Kategorie
 		lifecycleScope.launch {
 			selectCategory(CategoryType.WEIN)
 		}
@@ -57,7 +64,7 @@ class SalesActivity : AppCompatActivity() {
 		try {
 			val salesCategories = CategoryType.defaultOrder().filter { it != CategoryType.PFAND }
 			salesCategories.forEach { category ->
-				tabLayout.addTab(tabLayout.newTab().setText(category.displayName).setTag(category))
+				tabLayout.addTab(tabLayout.newTab().setText(category.getDisplayName()).setTag(category))
 			}
 
 			tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -86,7 +93,7 @@ class SalesActivity : AppCompatActivity() {
 			try {
 				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
 					adapter.submitList(articles)
-					salesInfoText.text = "${categoryType.displayName}: ${articles.size} Artikel"
+					salesInfoText.text = "${categoryType.getDisplayName()}: ${articles.size} Artikel"
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
