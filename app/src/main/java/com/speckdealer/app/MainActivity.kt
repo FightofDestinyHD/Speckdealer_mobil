@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_main)
 		appUpdateManager = AppUpdateManagerFactory.create(this)
-		setupUpdateTile()
+		setupMenuTiles()
 		showChangelogIfUpdated()
 		startIntroTransition()
 	}
@@ -42,7 +42,15 @@ class MainActivity : AppCompatActivity() {
 		}
 	}
 
-	private fun setupUpdateTile() {
+	private fun setupMenuTiles() {
+		findViewById<View>(R.id.salesTile).setOnClickListener {
+			startActivity(Intent(this, SalesActivity::class.java))
+		}
+
+		findViewById<View>(R.id.articleManagementTile).setOnClickListener {
+			startActivity(Intent(this, ArticleManagementActivity::class.java))
+		}
+
 		findViewById<View>(R.id.updateTile).setOnClickListener {
 			if (isInstalledFromPlayStore()) {
 				startImmediateUpdateIfAvailable()

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginBottom="8dp"
+	android:background="#33FFFFFF"
+	android:clickable="true"
+	android:focusable="true"
+	android:foreground="?attr/selectableItemBackground"
+	android:gravity="center_vertical"
+	android:orientation="horizontal"
+	android:padding="10dp">
+
+	<ImageView
+		android:id="@+id/salesArticleImage"
+		android:layout_width="56dp"
+		android:layout_height="56dp"
+		android:contentDescription="Artikelbild"
+		android:scaleType="centerCrop"
+		android:src="@android:drawable/ic_menu_gallery" />
+
+	<LinearLayout
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_marginStart="10dp"
+		android:layout_weight="1"
+		android:orientation="vertical">
+
+		<TextView
+			android:id="@+id/salesArticleName"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:textStyle="bold" />
+
+		<TextView
+			android:id="@+id/salesArticlePrice"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content" />
+
+		<TextView
+			android:id="@+id/salesArticleMeta"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:textSize="12sp" />
+	</LinearLayout>
+</LinearLayout>

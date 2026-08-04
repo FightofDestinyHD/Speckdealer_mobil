@@ -16,8 +16,8 @@ android {
 		applicationId = "com.speckdealer.app"
 		minSdkVersion(24)
 		targetSdkVersion(31)
-		versionCode = 9
-		versionName = "0.1.9"
+		versionCode = 10
+		versionName = "0.1.10"
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
@@ -65,6 +65,14 @@ dependencies {
 	implementation("androidx.appcompat:appcompat:1.4.2")
 	implementation("com.google.android.material:material:1.5.0")
 	implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+	implementation("androidx.recyclerview:recyclerview:1.2.1")
+	implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.31")
+	implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.3.1")
+	implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1")
+	implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.3.1")
+	implementation("androidx.room:room-runtime:2.3.0")
+	implementation("androidx.room:room-ktx:2.3.0")
+	annotationProcessor("androidx.room:room-compiler:2.3.0")
 	implementation("com.google.android.play:app-update:2.0.1")
 
 	testImplementation("junit:junit:4.13.2")
