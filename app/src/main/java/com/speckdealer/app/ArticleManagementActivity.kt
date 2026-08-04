@@ -25,7 +25,7 @@ import java.util.Locale
 
 class ArticleManagementActivity : AppCompatActivity() {
 
-	private var repository: ArticleRepository? = null
+	private lateinit var repository: ArticleRepository
 	private lateinit var adapter: ArticleAdapter
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private var observeJob: Job? = null
@@ -55,21 +55,17 @@ class ArticleManagementActivity : AppCompatActivity() {
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_article_management)
-		setupViews()
-		setupRecyclerView()
-		setupCategoryButtons()
-		setupFormActions()
 
-		// Repository mit Error-Handling laden
 		try {
 			repository = AppGraph.repository(this)
+			setupViews()
+			setupRecyclerView()
+			setupCategoryButtons()
+			setupFormActions()
+			selectCategory(CategoryType.WEIN)
 		} catch (e: Exception) {
 			e.printStackTrace()
-			Snackbar.make(findViewById(android.R.id.content), "Fehler beim Laden der Datenbank", Snackbar.LENGTH_LONG).show()
-		}
-
-		if (repository != null) {
-			selectCategory(CategoryType.WEIN)
+			Snackbar.make(findViewById(android.R.id.content), "Fehler beim Laden: ${e.message}", Snackbar.LENGTH_LONG).show()
 		}
 	}
 
@@ -116,7 +112,6 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun selectCategory(categoryType: CategoryType) {
-		if (repository == null) return // Repository noch nicht bereit
 		selectedCategory = categoryType
 		selectedCategoryTitle.text = "Kategorie: ${categoryType.displayName}"
 		configureFormForCategory(categoryType)
@@ -125,11 +120,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun observeCategory(categoryType: CategoryType) {
-		if (repository == null) return
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
 			try {
-				repository!!.observeArticlesByCategory(categoryType).collectLatest { articles ->
+				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
 					adapter.submitList(articles)
 				}
 			} catch (e: Exception) {
@@ -145,17 +139,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 		selectImageButton.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
-		if (!isWeinCategory) {
-			isWeinCheckbox.isChecked = false
-		}
 		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
 	}
 
 	private fun saveArticle() {
-		if (repository == null) {
-			showMessage("Datenbank wird noch geladen...")
-			return
-		}
 		val name = articleNameInput.text.toString().trim()
 		if (name.isEmpty()) {
 			showMessage("Bitte Artikelname eingeben")
@@ -188,9 +175,9 @@ class ArticleManagementActivity : AppCompatActivity() {
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
 				if (editingArticleId == null) {
-					repository!!.saveArticle(article)
+					repository.saveArticle(article)
 				} else {
-					repository!!.updateArticle(article)
+					repository.updateArticle(article)
 				}
 				launch(Dispatchers.Main) {
 					showMessage("Artikel gespeichert")
@@ -222,17 +209,17 @@ class ArticleManagementActivity : AppCompatActivity() {
 
 	private fun clearForm() {
 		editingArticleId = null
-		articleNameInput.text?.clear()
-		articlePriceInput.text?.clear()
+		articleNameInput.setText("")
+		articlePriceInput.setText("")
 		selectedImageUri = null
 		selectedImageLabel.text = "Kein Bild gewählt"
 		isWeinCheckbox.isChecked = false
-		hasBottleCheckbox.isChecked = true
+		hasBottleCheckbox.isChecked = false
 		hasGlass01Checkbox.isChecked = false
 		hasGlass02Checkbox.isChecked = false
-		depositApplicableCheckbox.isChecked = selectedCategory != CategoryType.PFAND
+		depositApplicableCheckbox.isChecked = false
 		glassDepositOptionalCheckbox.isChecked = false
-		wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN) View.GONE else View.GONE
+		wineOptionsContainer.visibility = View.GONE
 	}
 
 	private fun showMessage(message: String) {

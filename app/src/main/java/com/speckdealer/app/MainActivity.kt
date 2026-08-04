@@ -43,13 +43,6 @@ class MainActivity : AppCompatActivity() {
 			e.printStackTrace()
 		}
 
-		// Datenbank asynchron im Hintergrund initialisieren
-		try {
-			AppGraph.initializeDatabaseAsync(this)
-		} catch (e: Exception) {
-			e.printStackTrace()
-		}
-
 		try {
 			setupMenuTiles()
 			showChangelogIfUpdated()

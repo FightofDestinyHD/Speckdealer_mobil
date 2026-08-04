@@ -3,6 +3,7 @@ package com.speckdealer.app.data;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import org.json.JSONObject;
 
 @Entity(tableName = "articles")
 public class ArticleEntity {
@@ -40,8 +41,8 @@ public class ArticleEntity {
 	public boolean glassDepositOptional;
 
 	public ArticleEntity(String name, String category, int priceCents, String imageUri, boolean isWein,
-						 boolean hasBottleOption, boolean hasGlass01Option, boolean hasGlass02Option,
-						 boolean depositApplicable, boolean glassDepositOptional) {
+						boolean hasBottleOption, boolean hasGlass01Option, boolean hasGlass02Option,
+						boolean depositApplicable, boolean glassDepositOptional) {
 		this.name = name;
 		this.category = category;
 		this.priceCents = priceCents;
@@ -52,5 +53,48 @@ public class ArticleEntity {
 		this.hasGlass02Option = hasGlass02Option;
 		this.depositApplicable = depositApplicable;
 		this.glassDepositOptional = glassDepositOptional;
+	}
+
+	public JSONObject toJson() {
+		try {
+			JSONObject obj = new JSONObject();
+			obj.put("id", id);
+			obj.put("name", name);
+			obj.put("category", category);
+			obj.put("priceCents", priceCents);
+			obj.put("imageUri", imageUri);
+			obj.put("isWein", isWein);
+			obj.put("hasBottleOption", hasBottleOption);
+			obj.put("hasGlass01Option", hasGlass01Option);
+			obj.put("hasGlass02Option", hasGlass02Option);
+			obj.put("depositApplicable", depositApplicable);
+			obj.put("glassDepositOptional", glassDepositOptional);
+			return obj;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new JSONObject();
+		}
+	}
+
+	public static ArticleEntity fromJson(JSONObject obj) {
+		try {
+			ArticleEntity article = new ArticleEntity(
+				obj.getString("name"),
+				obj.getString("category"),
+				obj.getInt("priceCents"),
+				obj.optString("imageUri", null),
+				obj.getBoolean("isWein"),
+				obj.getBoolean("hasBottleOption"),
+				obj.getBoolean("hasGlass01Option"),
+				obj.getBoolean("hasGlass02Option"),
+				obj.getBoolean("depositApplicable"),
+				obj.getBoolean("glassDepositOptional")
+			);
+			article.id = obj.getLong("id");
+			return article;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 }

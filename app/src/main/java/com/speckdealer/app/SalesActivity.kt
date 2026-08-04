@@ -22,7 +22,7 @@ import java.util.Locale
 
 class SalesActivity : AppCompatActivity() {
 
-	private var repository: ArticleRepository? = null
+	private lateinit var repository: ArticleRepository
 	private lateinit var tabLayout: TabLayout
 	private lateinit var salesInfoText: TextView
 	private lateinit var adapter: SalesArticleAdapter
@@ -35,17 +35,11 @@ class SalesActivity : AppCompatActivity() {
 		setContentView(R.layout.activity_sales)
 
 		try {
+			repository = AppGraph.repository(this)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			salesInfoText = findViewById(R.id.salesSelectionInfo)
 			setupRecyclerView()
 			setupTabs()
-			// Repository mit Error-Handling laden
-			try {
-				repository = AppGraph.repository(this)
-			} catch (e: Exception) {
-				e.printStackTrace()
-				salesInfoText.text = "Fehler beim Laden der Datenbank: ${e.localizedMessage}"
-			}
 		} catch (e: Exception) {
 			e.printStackTrace()
 		}
@@ -53,7 +47,6 @@ class SalesActivity : AppCompatActivity() {
 
 	override fun onStart() {
 		super.onStart()
-		// Initiales Laden der ersten Kategorie
 		lifecycleScope.launch {
 			selectCategory(CategoryType.WEIN)
 		}
@@ -71,7 +64,7 @@ class SalesActivity : AppCompatActivity() {
 		try {
 			val salesCategories = CategoryType.defaultOrder().filter { it != CategoryType.PFAND }
 			salesCategories.forEach { category ->
-				tabLayout.addTab(tabLayout.newTab().setText(category.getDisplayName()).setTag(category))
+				tabLayout.addTab(tabLayout.newTab().setText(category.displayName).setTag(category))
 			}
 
 			tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -89,22 +82,17 @@ class SalesActivity : AppCompatActivity() {
 			}
 		} catch (e: Exception) {
 			e.printStackTrace()
-			salesInfoText.text = "Fehler beim Laden der Kategorien: ${e.message}"
 		}
 	}
 
 	private fun selectCategory(categoryType: CategoryType) {
-		if (repository == null) {
-			salesInfoText.text = "Datenbank wird noch geladen..."
-			return
-		}
 		selectedCategory = categoryType
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
 			try {
-				repository!!.observeArticlesByCategory(categoryType).collectLatest { articles ->
+				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
 					adapter.submitList(articles)
-					salesInfoText.text = "${categoryType.getDisplayName()}: ${articles.size} Artikel"
+					salesInfoText.text = "${categoryType.displayName}: ${articles.size} Artikel"
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
@@ -177,14 +165,10 @@ class SalesActivity : AppCompatActivity() {
 		applyDeposit: Boolean,
 		depositTypeToken: String?
 	) {
-		if (repository == null) {
-			salesInfoText.text = "Fehler: Datenbank nicht verfügbar"
-			return
-		}
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
 				val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
-					repository!!.getDepositArticleForType(depositTypeToken)
+					repository.getDepositArticleForType(depositTypeToken)
 				} else {
 					null
 				}

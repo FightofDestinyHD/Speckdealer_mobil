@@ -5,45 +5,46 @@ import java.util.List;
 import kotlinx.coroutines.flow.Flow;
 
 public class ArticleRepository {
-	private final ArticleDao articleDao;
+	private final ArticleStorage storage;
 
-	public ArticleRepository(ArticleDao articleDao) {
-		this.articleDao = articleDao;
+	public ArticleRepository(ArticleStorage storage) {
+		this.storage = storage;
 	}
 
 	public Flow<List<ArticleEntity>> observeAllArticles() {
-		return articleDao.observeAll();
+		return storage.observeArticles();
 	}
 
 	public Flow<List<ArticleEntity>> observeArticlesByCategory(CategoryType categoryType) {
-		return articleDao.observeByCategory(categoryType.getStorageValue());
+		return storage.observeArticlesByCategory(categoryType);
 	}
 
 	public List<ArticleEntity> getArticlesByCategory(CategoryType categoryType) {
-		return articleDao.getByCategory(categoryType.getStorageValue());
+		return storage.getArticlesByCategory(categoryType);
 	}
 
 	public List<ArticleEntity> getDepositArticles() {
-		return articleDao.getDepositArticles();
+		return storage.getDepositArticles();
 	}
 
 	public ArticleEntity getDepositArticleForType(String typeToken) {
 		try {
-			return articleDao.findDepositArticleByTypeToken(typeToken);
+			return storage.getDepositArticleForType(typeToken);
 		} catch (Exception e) {
 			return null;
 		}
 	}
 
 	public long saveArticle(ArticleEntity article) {
-		return articleDao.insert(article);
+		storage.saveArticle(article);
+		return article.id;
 	}
 
 	public void updateArticle(ArticleEntity article) {
-		articleDao.update(article);
+		storage.updateArticle(article);
 	}
 
 	public void deleteArticle(ArticleEntity article) {
-		articleDao.delete(article);
+		storage.deleteArticle(article.id);
 	}
 }
