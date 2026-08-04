@@ -10,11 +10,11 @@ Update</string>
 	<string name="update_available">Update verfügbar. Installation kann über den Update-Kanal erfolgen.</string>
 	<string name="no_update_available">Aktuell ist kein Update verfügbar.</string>
 	<string name="update_start_failed">Update konnte nicht gestartet werden.</string>
-	<string name="update_external_info">Update wird über die GitHub-Release-Seite installiert.</string>
+	<string name="update_downloading">Update wird heruntergeladen…</string>
+	<string name="update_download_failed">Update-Download fehlgeschlagen.</string>
+	<string name="allow_unknown_sources">Bitte Installation aus dieser Quelle erlauben und erneut auf Update tippen.</string>
 	<string name="changelog_title">Changelog</string>
 	<string name="changelog_message">Version %1$s
-• Neues Start-Intro mit weichem Übergang
-• 8-Kachel-Menü zentriert dargestellt
-• Update-Kachel mit direktem Update-Start
-• Kacheln: Verkauf, Artikelpflege, Archiv benannt</string>
+Neu: Direkter Update-Download und Installation.
+Aktualisiert: Kachel-Layout und Stabilität.</string>
 </resources>
