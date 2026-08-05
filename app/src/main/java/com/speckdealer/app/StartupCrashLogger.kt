@@ -1,6 +1,7 @@
 package com.speckdealer.app
 
 import android.content.Context
+import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -10,8 +11,13 @@ object StartupCrashLogger {
 
 	private const val LOG_DIR = "logs"
 	private const val LOG_FILE = "startup-crash.log"
+	private const val TAG = "StartupCrashLogger"
+
+	@Volatile
+	private var installed = false
 
 	fun install(context: Context) {
+		if (installed) return
 		val appContext = context.applicationContext
 		val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
 		Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -21,13 +27,13 @@ object StartupCrashLogger {
 			}
 			previousHandler?.uncaughtException(thread, throwable)
 		}
+		installed = true
 		logEvent(appContext, "Crash logger installiert")
 	}
 
 	fun logEvent(context: Context, message: String, throwable: Throwable? = null) {
 		try {
 			val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.GERMANY).format(Date())
-			val logFile = getLogFile(context)
 			val entry = buildString {
 				append(now)
 				append(" | ")
@@ -38,18 +44,35 @@ object StartupCrashLogger {
 					append(": ")
 					append(throwable.message ?: "")
 					append('\n')
-					append(android.util.Log.getStackTraceString(throwable))
+					append(Log.getStackTraceString(throwable))
 					append('\n')
 				}
 			}
-			logFile.appendText(entry)
+			for (file in getLogFiles(context)) {
+				try {
+					file.appendText(entry)
+				} catch (_: Exception) {
+				}
+			}
+			Log.e(TAG, message, throwable)
 		} catch (_: Exception) {
 		}
 	}
 
-	private fun getLogFile(context: Context): File {
-		val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
-		val dir = File(baseDir, LOG_DIR)
+	fun getKnownPaths(context: Context): List<String> {
+		return getLogFiles(context).map { it.absolutePath }
+	}
+
+	private fun getLogFiles(context: Context): List<File> {
+		val files = mutableListOf<File>()
+		files.add(createLogFile(File(context.filesDir, LOG_DIR)))
+		context.getExternalFilesDir(null)?.let { externalBase ->
+			files.add(createLogFile(File(externalBase, LOG_DIR)))
+		}
+		return files.distinctBy { it.absolutePath }
+	}
+
+	private fun createLogFile(dir: File): File {
 		if (!dir.exists()) {
 			dir.mkdirs()
 		}

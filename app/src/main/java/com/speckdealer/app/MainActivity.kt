@@ -30,7 +30,6 @@ class MainActivity : AppCompatActivity() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
-		StartupCrashLogger.install(this)
 		StartupCrashLogger.logEvent(this, "MainActivity.onCreate start")
 		try {
 			setContentView(R.layout.activity_main)
@@ -53,7 +52,7 @@ class MainActivity : AppCompatActivity() {
 			setupMenuTiles()
 			showChangelogIfUpdated()
 			startIntroTransition()
-			StartupCrashLogger.logEvent(this, "MainActivity UI init fertig")
+			StartupCrashLogger.logEvent(this, "MainActivity UI init fertig | logs=" + StartupCrashLogger.getKnownPaths(this).joinToString("; "))
 		} catch (e: Exception) {
 			StartupCrashLogger.logEvent(this, "MainActivity UI init Fehler", e)
 			e.printStackTrace()
