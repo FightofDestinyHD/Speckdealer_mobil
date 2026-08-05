@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
 	private fun setupMenuTiles() {
 		try {
 			val salesTile = findViewById<View?>(R.id.salesTile)
+			val ordersTile = findViewById<View?>(R.id.ordersTile)
 			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
 			val dailyReportTile = findViewById<View?>(R.id.dailyReportTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
@@ -92,6 +93,15 @@ class MainActivity : AppCompatActivity() {
 					startActivity(Intent(this, SalesActivity::class.java))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "SalesActivity öffnen Fehler", e)
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
+			}
+
+			ordersTile?.setOnClickListener {
+				try {
+					startActivity(Intent(this, OrdersActivity::class.java))
+				} catch (e: Exception) {
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}

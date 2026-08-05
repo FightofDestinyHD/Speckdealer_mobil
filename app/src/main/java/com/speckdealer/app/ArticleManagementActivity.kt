@@ -53,6 +53,11 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var glass01PriceInput: EditText
 	private lateinit var glass02PriceInput: EditText
 	private lateinit var weightPriceHint: TextView
+	private lateinit var snackSizeContainer: View
+	private lateinit var hasLargeCheckbox: CheckBox
+	private lateinit var hasSmallCheckbox: CheckBox
+	private lateinit var largePriceInput: EditText
+	private lateinit var smallPriceInput: EditText
 
 	private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 		if (uri != null) {
@@ -101,6 +106,11 @@ class ArticleManagementActivity : AppCompatActivity() {
 		glass01PriceInput = findViewById(R.id.glass01PriceInput)
 		glass02PriceInput = findViewById(R.id.glass02PriceInput)
 		weightPriceHint = findViewById(R.id.weightPriceHint)
+		snackSizeContainer = findViewById(R.id.snackSizeContainer)
+		hasLargeCheckbox = findViewById(R.id.hasLargeCheckbox)
+		hasSmallCheckbox = findViewById(R.id.hasSmallCheckbox)
+		largePriceInput = findViewById(R.id.largePriceInput)
+		smallPriceInput = findViewById(R.id.smallPriceInput)
 	}
 
 	private fun setupRecyclerView() {
@@ -164,15 +174,19 @@ class ArticleManagementActivity : AppCompatActivity() {
 		val isPfandCategory = categoryType == CategoryType.PFAND
 		val isWeinCategory = categoryType == CategoryType.WEIN
 		val isSoftCategory = categoryType == CategoryType.SOFTGETRAENKE
+		val isSnackCategory = categoryType == CategoryType.SNACKS
 		val isWeightCategory = categoryType == CategoryType.SPECK || categoryType == CategoryType.KAESE
 
 		selectImageButton.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
 		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
-		// Softgetränke: Pfand anwenden + Glaspfand-Option sichtbar
-		depositApplicableCheckbox.visibility = if (isSoftCategory) View.VISIBLE else View.GONE
+		// Softgetränke & Snacks: Pfand anwenden sichtbar
+		depositApplicableCheckbox.visibility = if (isSoftCategory || isSnackCategory) View.VISIBLE else View.GONE
+		// Glaspfand-Option nur für Softgetränke
 		glassDepositOptionalCheckbox.visibility = if (isSoftCategory && depositApplicableCheckbox.isChecked) View.VISIBLE else View.GONE
+		// Snack: Größenoptionen
+		snackSizeContainer.visibility = if (isSnackCategory) View.VISIBLE else View.GONE
 		// Speck & Käse: Preis wird beim Verkauf eingegeben
 		articlePriceInput.visibility = if (isWeightCategory) View.GONE else View.VISIBLE
 		weightPriceHint.visibility = if (isWeightCategory) View.VISIBLE else View.GONE
@@ -211,7 +225,23 @@ class ArticleManagementActivity : AppCompatActivity() {
 		} else 0
 
 		val isSoft = selectedCategory == CategoryType.SOFTGETRAENKE
+		val isSnack = selectedCategory == CategoryType.SNACKS
 		val idToEdit = editingArticleId
+
+		// Snack-Größen
+		val largePriceStr = largePriceInput.text.toString().trim().replace(',', '.')
+		val largeCents = if (isSnack && hasLargeCheckbox.isChecked) {
+			val v = ((largePriceStr.toDoubleOrNull() ?: -1.0) * 100).toInt()
+			if (v < 0) { showMessage("Bitte gültigen Preis für Groß eingeben"); return }
+			v
+		} else 0
+		val smallPriceStr = smallPriceInput.text.toString().trim().replace(',', '.')
+		val smallCents = if (isSnack && hasSmallCheckbox.isChecked) {
+			val v = ((smallPriceStr.toDoubleOrNull() ?: -1.0) * 100).toInt()
+			if (v < 0) { showMessage("Bitte gültigen Preis für Klein eingeben"); return }
+			v
+		} else 0
+
 		val article = ArticleEntity(
 			name,
 			selectedCategory.storageValue,
@@ -221,10 +251,14 @@ class ArticleManagementActivity : AppCompatActivity() {
 			hasBottleCheckbox.isChecked,
 			hasGlass01Checkbox.isChecked,
 			hasGlass02Checkbox.isChecked,
-			if (isSoft) depositApplicableCheckbox.isChecked else !isPfand && depositApplicableCheckbox.isChecked,
+			if (isSoft || isSnack) depositApplicableCheckbox.isChecked else !isPfand && depositApplicableCheckbox.isChecked,
 			(isWeinArtikel || isSoft) && glassDepositOptionalCheckbox.isChecked,
 			glass01Cents,
-			glass02Cents
+			glass02Cents,
+			isSnack && hasLargeCheckbox.isChecked,
+			isSnack && hasSmallCheckbox.isChecked,
+			largeCents,
+			smallCents
 		)
 		idToEdit?.let { article.id = it }
 
@@ -262,6 +296,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 		hasGlass02Checkbox.isChecked = article.hasGlass02Option
 		depositApplicableCheckbox.isChecked = article.depositApplicable
 		glassDepositOptionalCheckbox.isChecked = article.glassDepositOptional
+		hasLargeCheckbox.isChecked = article.hasLargeOption
+		hasSmallCheckbox.isChecked = article.hasSmallOption
+		largePriceInput.setText(if (article.largePriceCents > 0) String.format(Locale.US, "%.2f", article.largePriceCents / 100.0) else "")
+		smallPriceInput.setText(if (article.smallPriceCents > 0) String.format(Locale.US, "%.2f", article.smallPriceCents / 100.0) else "")
 		wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
 	}
 
@@ -279,6 +317,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 		hasGlass02Checkbox.isChecked = false
 		depositApplicableCheckbox.isChecked = false
 		glassDepositOptionalCheckbox.isChecked = false
+		hasLargeCheckbox.isChecked = false
+		hasSmallCheckbox.isChecked = false
+		largePriceInput.setText("")
+		smallPriceInput.setText("")
 		wineOptionsContainer.visibility = View.GONE
 	}
 

@@ -2,6 +2,7 @@ package com.speckdealer.app
 
 import android.os.Bundle
 import android.text.InputType
+import android.view.LayoutInflater
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -14,6 +15,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.speckdealer.app.data.DailySalesStorage
+import com.speckdealer.app.data.OrderRecord
+import com.speckdealer.app.data.OrderStorage
 import com.speckdealer.app.data.SaleRecord
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
@@ -26,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
+import java.util.UUID
 
 data class CartEntry(
     val displayName: String,
@@ -42,6 +46,7 @@ class SalesActivity : AppCompatActivity() {
 
 	private lateinit var repository: ArticleRepository
 	private lateinit var dailySalesStorage: DailySalesStorage
+	private lateinit var orderStorage: OrderStorage
 	private lateinit var tabLayout: TabLayout
 	private lateinit var cartTotalText: TextView
 	private lateinit var adapter: SalesArticleAdapter
@@ -58,6 +63,7 @@ class SalesActivity : AppCompatActivity() {
 		try {
 			repository = AppGraph.repository(this)
 			dailySalesStorage = DailySalesStorage(this)
+				orderStorage = OrderStorage(this)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			cartTotalText = findViewById(R.id.cartTotalText)
 			setupArticleRecyclerView()
@@ -253,6 +259,10 @@ class SalesActivity : AppCompatActivity() {
 			showSoftdrinkDepositDialog(article)
 			return
 		}
+		if (selectedCategory == CategoryType.SNACKS) {
+			showSnackSizeDialog(article)
+			return
+		}
 		if (selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE) {
 			showWeightPriceDialog(article)
 			return
@@ -318,6 +328,158 @@ class SalesActivity : AppCompatActivity() {
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
+	}
+
+	private fun showSnackSizeDialog(article: ArticleEntity) {
+		val hasLarge = article.hasLargeOption && article.largePriceCents > 0
+		val hasSmall = article.hasSmallOption && article.smallPriceCents > 0
+		when {
+			hasLarge && hasSmall -> {
+				val options = arrayOf(
+					"Groß (${fmtCents(article.largePriceCents)})",
+					"Klein (${fmtCents(article.smallPriceCents)})"
+				)
+				AlertDialog.Builder(this)
+					.setTitle("${article.name} – Größe wählen")
+					.setItems(options) { _, which ->
+						val sizeName = if (which == 0) "Groß" else "Klein"
+						val price    = if (which == 0) article.largePriceCents else article.smallPriceCents
+						showSnackToppingsDialog(article, sizeName, price)
+					}
+					.setNegativeButton("Abbrechen", null)
+					.show()
+			}
+			hasLarge -> showSnackToppingsDialog(article, "Groß",  article.largePriceCents)
+			hasSmall -> showSnackToppingsDialog(article, "Klein", article.smallPriceCents)
+			else     -> showSnackToppingsDialog(article, "", article.priceCents)
+		}
+	}
+
+	private fun fmtCents(cents: Int): String =
+		NumberFormat.getCurrencyInstance(Locale.GERMANY).format(cents / 100.0)
+
+	private fun showSnackToppingsDialog(article: ArticleEntity, sizeName: String, priceCents: Int) {
+		val counts = IntArray(5) { 1 } // gurken, tomaten, zwiebeln, oliven, brezeln
+		val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_snack_toppings, null)
+
+		val countViews = listOf<TextView>(
+			dialogView.findViewById(R.id.gurkenCount),
+			dialogView.findViewById(R.id.tomatenCount),
+			dialogView.findViewById(R.id.zwiebelCount),
+			dialogView.findViewById(R.id.olivenCount),
+			dialogView.findViewById(R.id.bretzelnCount)
+		)
+		val minusBtns = listOf<Button>(
+			dialogView.findViewById(R.id.gurkenMinus),
+			dialogView.findViewById(R.id.tomatenMinus),
+			dialogView.findViewById(R.id.zwiebelMinus),
+			dialogView.findViewById(R.id.olivenMinus),
+			dialogView.findViewById(R.id.bretzelnMinus)
+		)
+		val plusBtns = listOf<Button>(
+			dialogView.findViewById(R.id.gurkenPlus),
+			dialogView.findViewById(R.id.tomatenPlus),
+			dialogView.findViewById(R.id.zwiebelPlus),
+			dialogView.findViewById(R.id.olivenPlus),
+			dialogView.findViewById(R.id.bretzelnPlus)
+		)
+		val sonderwunschInput = dialogView.findViewById<EditText>(R.id.sonderwunschInput)
+
+		fun refresh() { countViews.forEachIndexed { i, tv -> tv.text = counts[i].toString() } }
+		refresh()
+		minusBtns.forEachIndexed { i, btn -> btn.setOnClickListener { if (counts[i] > 0) { counts[i]--; refresh() } } }
+		plusBtns.forEachIndexed  { i, btn -> btn.setOnClickListener { counts[i]++; refresh() } }
+
+		val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
+		AlertDialog.Builder(this)
+			.setTitle("${article.name}$sizeLabel – Zutaten")
+			.setView(dialogView)
+			.setPositiveButton("Weiter") { _, _ ->
+				val sw = sonderwunschInput.text.toString().trim()
+				showSnackPfandDialog(article, sizeName, priceCents,
+					counts[0], counts[1], counts[2], counts[3], counts[4], sw)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun showSnackPfandDialog(
+		article: ArticleEntity, sizeName: String, priceCents: Int,
+		gurken: Int, tomaten: Int, zwiebeln: Int, oliven: Int, brezeln: Int,
+		sonderwunsch: String
+	) {
+		if (!article.depositApplicable) {
+			placeSnackOrder(article, sizeName, priceCents, false,
+				gurken, tomaten, zwiebeln, oliven, brezeln, sonderwunsch, false)
+			return
+		}
+		AlertDialog.Builder(this)
+			.setTitle("${article.name} – Pfand")
+			.setItems(arrayOf("Mit Pfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
+				val isEmployee  = which == 2
+				val withDeposit = which == 0
+				val finalPrice  = if (isEmployee) 0 else priceCents
+				placeSnackOrder(article, sizeName, finalPrice, withDeposit,
+					gurken, tomaten, zwiebeln, oliven, brezeln, sonderwunsch, isEmployee)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun placeSnackOrder(
+		article: ArticleEntity, sizeName: String, priceCents: Int,
+		withDeposit: Boolean,
+		gurken: Int, tomaten: Int, zwiebeln: Int, oliven: Int, brezeln: Int,
+		sonderwunsch: String, isEmployee: Boolean
+	) {
+		lifecycleScope.launch(Dispatchers.IO) {
+			val actualDepositCents = if (withDeposit && !isEmployee) {
+				repository.getDepositArticleForType("teller")?.priceCents ?: 0
+			} else 0
+
+			val order = OrderRecord(
+				id           = UUID.randomUUID().toString(),
+				articleName  = article.name,
+				sizeName     = sizeName,
+				priceCents   = priceCents,
+				depositCents = actualDepositCents,
+				isEmployee   = isEmployee,
+				gurken       = gurken,
+				tomaten      = tomaten,
+				zwiebeln     = zwiebeln,
+				oliven       = oliven,
+				brezeln      = brezeln,
+				sonderwunsch = sonderwunsch
+			)
+			orderStorage.add(order)
+
+			// Auch als SaleRecord für Tagesabschluss
+			val saleRecord = SaleRecord(
+				articleName  = article.name,
+				category     = article.category,
+				servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
+				priceCents   = priceCents,
+				depositCents = actualDepositCents,
+				isEmployee   = isEmployee
+			)
+			dailySalesStorage.appendRecords(listOf(saleRecord))
+
+			withContext(Dispatchers.Main) {
+				val total     = priceCents + actualDepositCents
+				val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
+				val empLabel  = if (isEmployee) " – Mitarbeiter" else ""
+				addToCart(CartEntry(
+					displayName  = "${article.name}$sizeLabel$empLabel",
+					totalCents   = total,
+					articleName  = article.name,
+					category     = article.category,
+					servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
+					priceCents   = priceCents,
+					depositCents = actualDepositCents,
+					isEmployee   = isEmployee
+				))
+			}
+		}
 	}
 
 	private fun showWineServingDialog(article: ArticleEntity) {

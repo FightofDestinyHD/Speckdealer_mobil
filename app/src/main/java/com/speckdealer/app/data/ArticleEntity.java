@@ -46,10 +46,24 @@ public class ArticleEntity {
 	@ColumnInfo(name = "glass02_price_cents")
 	public int glass02PriceCents;
 
+	@ColumnInfo(name = "has_large_option")
+	public boolean hasLargeOption;
+
+	@ColumnInfo(name = "has_small_option")
+	public boolean hasSmallOption;
+
+	@ColumnInfo(name = "large_price_cents")
+	public int largePriceCents;
+
+	@ColumnInfo(name = "small_price_cents")
+	public int smallPriceCents;
+
 	public ArticleEntity(String name, String category, int priceCents, String imageUri, boolean isWein,
 						boolean hasBottleOption, boolean hasGlass01Option, boolean hasGlass02Option,
 						boolean depositApplicable, boolean glassDepositOptional,
-						int glass01PriceCents, int glass02PriceCents) {
+						int glass01PriceCents, int glass02PriceCents,
+						boolean hasLargeOption, boolean hasSmallOption,
+						int largePriceCents, int smallPriceCents) {
 		this.name = name;
 		this.category = category;
 		this.priceCents = priceCents;
@@ -62,6 +76,10 @@ public class ArticleEntity {
 		this.glassDepositOptional = glassDepositOptional;
 		this.glass01PriceCents = glass01PriceCents;
 		this.glass02PriceCents = glass02PriceCents;
+		this.hasLargeOption = hasLargeOption;
+		this.hasSmallOption = hasSmallOption;
+		this.largePriceCents = largePriceCents;
+		this.smallPriceCents = smallPriceCents;
 	}
 
 	public JSONObject toJson() {
@@ -78,8 +96,12 @@ public class ArticleEntity {
 			obj.put("hasGlass02Option", hasGlass02Option);
 			obj.put("depositApplicable", depositApplicable);
 			obj.put("glassDepositOptional", glassDepositOptional);
-			obj.put("glass01PriceCents", glass01PriceCents);
-			obj.put("glass02PriceCents", glass02PriceCents);
+				obj.put("glass01PriceCents", glass01PriceCents);
+				obj.put("glass02PriceCents", glass02PriceCents);
+				obj.put("hasLargeOption", hasLargeOption);
+				obj.put("hasSmallOption", hasSmallOption);
+				obj.put("largePriceCents", largePriceCents);
+				obj.put("smallPriceCents", smallPriceCents);
 			return obj;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -101,7 +123,11 @@ public class ArticleEntity {
 				obj.getBoolean("depositApplicable"),
 				obj.getBoolean("glassDepositOptional"),
 				obj.optInt("glass01PriceCents", obj.optInt("priceCents", 0)),
-				obj.optInt("glass02PriceCents", obj.optInt("priceCents", 0))
+				obj.optInt("glass02PriceCents", obj.optInt("priceCents", 0)),
+				obj.optBoolean("hasLargeOption", false),
+				obj.optBoolean("hasSmallOption", false),
+				obj.optInt("largePriceCents", 0),
+				obj.optInt("smallPriceCents", 0)
 			);
 			article.id = obj.getLong("id");
 			return article;

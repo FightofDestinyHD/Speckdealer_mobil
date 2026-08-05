@@ -71,6 +71,7 @@
 			android:text="@string/tile_sales" />
 
 		<TextView
+			android:id="@+id/ordersTile"
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
@@ -82,11 +83,14 @@
 			android:autoSizeStepGranularity="1sp"
 			android:autoSizeTextType="uniform"
 			android:background="@drawable/menu_tile_background"
+			android:clickable="true"
+			android:focusable="true"
+			android:foreground="?attr/selectableItemBackground"
 			android:gravity="center"
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="2" />
+			android:text="Bestellungen" />
 
 		<TextView
 			android:id="@+id/dailyReportTile"

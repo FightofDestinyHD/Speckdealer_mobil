@@ -176,6 +176,52 @@
 					android:text="Glaspfand (statt Flaschenpfand)"
 					android:visibility="gone" />
 
+				<!-- Snack-Größen -->
+				<LinearLayout
+					android:id="@+id/snackSizeContainer"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:orientation="vertical"
+					android:visibility="gone">
+
+					<TextView
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Teller-Größen"
+						android:textStyle="bold"
+						android:paddingTop="8dp"
+						android:paddingBottom="4dp" />
+
+					<CheckBox
+						android:id="@+id/hasLargeCheckbox"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Groß verfügbar" />
+
+					<EditText
+						android:id="@+id/largePriceInput"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:layout_marginStart="16dp"
+						android:hint="Preis Groß (z. B. 8.50)"
+						android:inputType="numberDecimal" />
+
+					<CheckBox
+						android:id="@+id/hasSmallCheckbox"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Klein verfügbar" />
+
+					<EditText
+						android:id="@+id/smallPriceInput"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:layout_marginStart="16dp"
+						android:hint="Preis Klein (z. B. 5.50)"
+						android:inputType="numberDecimal" />
+
+				</LinearLayout>
+
 				<Button
 					android:id="@+id/selectImageButton"
 					android:layout_width="match_parent"
