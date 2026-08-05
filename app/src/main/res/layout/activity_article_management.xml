@@ -48,6 +48,13 @@
 			android:text="Snacks" />
 
 		<Button
+			android:id="@+id/categoryAngebotButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Angebot" />
+
+		<Button
 			android:id="@+id/categoryPfandButton"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -187,6 +194,7 @@
 					<TextView
 						android:layout_width="match_parent"
 						android:layout_height="wrap_content"
+						android:id="@+id/snackSizeLabel"
 						android:text="Teller-Größen"
 						android:textStyle="bold"
 						android:paddingTop="8dp"

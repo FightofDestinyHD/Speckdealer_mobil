@@ -9,6 +9,7 @@ public enum CategoryType {
 	SPECK("SPECK", "Speck"),
 	KAESE("KAESE", "Käse"),
 	SNACKS("SNACKS", "Snacks"),
+	ANGEBOT("ANGEBOT", "Angebot"),
 	PFAND("PFAND", "Pfand");
 
 	private final String storageValue;
@@ -37,6 +38,6 @@ public enum CategoryType {
 	}
 
 	public static List<CategoryType> defaultOrder() {
-		return Arrays.asList(WEIN, SOFTGETRAENKE, SPECK, KAESE, SNACKS, PFAND);
+		return Arrays.asList(WEIN, SOFTGETRAENKE, SPECK, KAESE, SNACKS, ANGEBOT, PFAND);
 	}
 }

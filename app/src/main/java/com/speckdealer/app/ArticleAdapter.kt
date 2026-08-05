@@ -44,6 +44,7 @@ class ArticleAdapter(
 		fun bind(item: ArticleEntity) {
 			nameText.text = item.name
 			val isSnack = item.category == com.speckdealer.app.data.CategoryType.SNACKS.name
+					|| item.category == com.speckdealer.app.data.CategoryType.ANGEBOT.name
 			metaText.text = when {
 				isSnack && item.hasLargeOption && item.hasSmallOption ->
 					"Groﬂ: ${currencyFormatter.format(item.largePriceCents / 100.0)}  Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"

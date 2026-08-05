@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:padding="16dp">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Gläser zum Angebot"
+		android:textStyle="bold"
+		android:textSize="16sp"
+		android:paddingBottom="8dp" />
+
+	<!-- Glas 0,1l -->
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:layout_marginBottom="8dp">
+
+		<TextView
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Glas 0,1l"
+			android:textSize="15sp" />
+
+		<Button
+			android:id="@+id/glas01Minus"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:text="−"
+			android:textSize="18sp"
+			android:padding="0dp" />
+
+		<TextView
+			android:id="@+id/glas01Count"
+			android:layout_width="40dp"
+			android:layout_height="wrap_content"
+			android:gravity="center"
+			android:text="0"
+			android:textSize="18sp"
+			android:textStyle="bold" />
+
+		<Button
+			android:id="@+id/glas01Plus"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:text="+"
+			android:textSize="18sp"
+			android:padding="0dp" />
+	</LinearLayout>
+
+	<!-- Glas 0,2l -->
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:layout_marginBottom="12dp">
+
+		<TextView
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Glas 0,2l"
+			android:textSize="15sp" />
+
+		<Button
+			android:id="@+id/glas02Minus"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:text="−"
+			android:textSize="18sp"
+			android:padding="0dp" />
+
+		<TextView
+			android:id="@+id/glas02Count"
+			android:layout_width="40dp"
+			android:layout_height="wrap_content"
+			android:gravity="center"
+			android:text="0"
+			android:textSize="18sp"
+			android:textStyle="bold" />
+
+		<Button
+			android:id="@+id/glas02Plus"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:text="+"
+			android:textSize="18sp"
+			android:padding="0dp" />
+	</LinearLayout>
+
+	<!-- Sonderwunsch -->
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Sonderwunsch (optional)"
+		android:textSize="14sp"
+		android:paddingBottom="4dp" />
+
+	<EditText
+		android:id="@+id/angebotSonderwunsch"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:hint="z. B. extra Brot"
+		android:inputType="textMultiLine"
+		android:minLines="2" />
+
+</LinearLayout>

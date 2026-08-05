@@ -50,6 +50,7 @@ class SalesArticleAdapter(
 			nameText.text = item.name
 
 			val isSnack = item.category == com.speckdealer.app.data.CategoryType.SNACKS.name
+				|| item.category == com.speckdealer.app.data.CategoryType.ANGEBOT.name
 
 			if (isSnack) {
 				// Snacks: Groß/Klein-Preise statt Hauptpreis

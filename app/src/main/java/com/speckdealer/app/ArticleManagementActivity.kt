@@ -54,6 +54,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var glass02PriceInput: EditText
 	private lateinit var weightPriceHint: TextView
 	private lateinit var snackSizeContainer: View
+	private lateinit var snackSizeLabel: TextView
 	private lateinit var hasLargeCheckbox: CheckBox
 	private lateinit var hasSmallCheckbox: CheckBox
 	private lateinit var largePriceInput: EditText
@@ -107,6 +108,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 		glass02PriceInput = findViewById(R.id.glass02PriceInput)
 		weightPriceHint = findViewById(R.id.weightPriceHint)
 		snackSizeContainer = findViewById(R.id.snackSizeContainer)
+		snackSizeLabel = findViewById(R.id.snackSizeLabel)
 		hasLargeCheckbox = findViewById(R.id.hasLargeCheckbox)
 		hasSmallCheckbox = findViewById(R.id.hasSmallCheckbox)
 		largePriceInput = findViewById(R.id.largePriceInput)
@@ -130,6 +132,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 		findViewById<Button>(R.id.categorySpeckButton).setOnClickListener { selectCategory(CategoryType.SPECK) }
 		findViewById<Button>(R.id.categoryKaeseButton).setOnClickListener { selectCategory(CategoryType.KAESE) }
 		findViewById<Button>(R.id.categorySnacksButton).setOnClickListener { selectCategory(CategoryType.SNACKS) }
+		findViewById<Button>(R.id.categoryAngebotButton).setOnClickListener { selectCategory(CategoryType.ANGEBOT) }
 		findViewById<Button>(R.id.categoryPfandButton).setOnClickListener { selectCategory(CategoryType.PFAND) }
 	}
 
@@ -171,28 +174,30 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun configureFormForCategory(categoryType: CategoryType) {
-		val isPfandCategory = categoryType == CategoryType.PFAND
-		val isWeinCategory = categoryType == CategoryType.WEIN
-		val isSoftCategory = categoryType == CategoryType.SOFTGETRAENKE
-		val isSnackCategory = categoryType == CategoryType.SNACKS
-		val isWeightCategory = categoryType == CategoryType.SPECK || categoryType == CategoryType.KAESE
+		val isPfandCategory   = categoryType == CategoryType.PFAND
+		val isWeinCategory    = categoryType == CategoryType.WEIN
+		val isSoftCategory    = categoryType == CategoryType.SOFTGETRAENKE
+		val isSnackCategory   = categoryType == CategoryType.SNACKS
+		val isAngebotCategory = categoryType == CategoryType.ANGEBOT
+		val isWeightCategory  = categoryType == CategoryType.SPECK || categoryType == CategoryType.KAESE
 
 		selectImageButton.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
 		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
-		// Softgetränke & Snacks: Pfand anwenden sichtbar
 		depositApplicableCheckbox.visibility = if (isSoftCategory || isSnackCategory) View.VISIBLE else View.GONE
-		// Glaspfand-Option nur für Softgetränke
 		glassDepositOptionalCheckbox.visibility = if (isSoftCategory && depositApplicableCheckbox.isChecked) View.VISIBLE else View.GONE
-		// Snack: Größenoptionen
-		snackSizeContainer.visibility = if (isSnackCategory) View.VISIBLE else View.GONE
-		// Speck, Käse & Snacks: allgemeines Preisfeld ausblenden
-		val hidePrice = isWeightCategory || isSnackCategory
+		snackSizeContainer.visibility = if (isSnackCategory || isAngebotCategory) View.VISIBLE else View.GONE
+		snackSizeLabel.text = if (isAngebotCategory) "Teller-Größen (Angebot: inkl. 1 Flasche Wein)" else "Teller-Größen"
+		val hidePrice = isWeightCategory || isSnackCategory || isAngebotCategory
 		articlePriceInput.visibility = if (hidePrice) View.GONE else View.VISIBLE
 		weightPriceHint.visibility = if (hidePrice) View.VISIBLE else View.GONE
-		if (isSnackCategory) weightPriceHint.text = "Preis wird über Teller-Größen (Groß/Klein) festgelegt"
-		else if (isWeightCategory) weightPriceHint.text = "⚖️ Preis wird beim Verkauf nach Gewicht eingegeben"
+		weightPriceHint.text = when {
+			isAngebotCategory -> "Preise Groß/Klein = Gesamtpreis des jeweiligen Angebots"
+			isSnackCategory   -> "Preis wird über Teller-Größen (Groß/Klein) festgelegt"
+			isWeightCategory  -> "⚖️ Preis wird beim Verkauf nach Gewicht eingegeben"
+			else              -> ""
+		}
 	}
 
 	private fun saveArticle() {
@@ -202,14 +207,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 			return
 		}
 
-		val isWeightCategory = selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE
-		val isSnackCategory2 = selectedCategory == CategoryType.SNACKS
+		val isWeightCategory  = selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE
+		val isSnackCategory2  = selectedCategory == CategoryType.SNACKS
+		val isAngebotCategory = selectedCategory == CategoryType.ANGEBOT
 		val price = articlePriceInput.text.toString().trim().replace(',', '.')
 		val priceCents = when {
-			isWeightCategory || isSnackCategory2 -> 0
+			isWeightCategory || isSnackCategory2 || isAngebotCategory -> 0
 			else -> ((price.toDoubleOrNull() ?: -1.0) * 100).toInt()
 		}
-		if (!isWeightCategory && !isSnackCategory2 && priceCents < 0) {
+		if (!isWeightCategory && !isSnackCategory2 && !isAngebotCategory && priceCents < 0) {
 			showMessage("Bitte gültigen Preis eingeben")
 			return
 		}
@@ -231,19 +237,20 @@ class ArticleManagementActivity : AppCompatActivity() {
 			v
 		} else 0
 
-		val isSoft = selectedCategory == CategoryType.SOFTGETRAENKE
-		val isSnack = selectedCategory == CategoryType.SNACKS
-		val idToEdit = editingArticleId
+		val isSoft    = selectedCategory == CategoryType.SOFTGETRAENKE
+		val isSnack   = selectedCategory == CategoryType.SNACKS
+		val isAngebot = selectedCategory == CategoryType.ANGEBOT
+		val idToEdit  = editingArticleId
 
-		// Snack-Größen
+		// Snack- & Angebot-Größen
 		val largePriceStr = largePriceInput.text.toString().trim().replace(',', '.')
-		val largeCents = if (isSnack && hasLargeCheckbox.isChecked) {
+		val largeCents = if ((isSnack || isAngebot) && hasLargeCheckbox.isChecked) {
 			val v = ((largePriceStr.toDoubleOrNull() ?: -1.0) * 100).toInt()
 			if (v < 0) { showMessage("Bitte gültigen Preis für Groß eingeben"); return }
 			v
 		} else 0
 		val smallPriceStr = smallPriceInput.text.toString().trim().replace(',', '.')
-		val smallCents = if (isSnack && hasSmallCheckbox.isChecked) {
+		val smallCents = if ((isSnack || isAngebot) && hasSmallCheckbox.isChecked) {
 			val v = ((smallPriceStr.toDoubleOrNull() ?: -1.0) * 100).toInt()
 			if (v < 0) { showMessage("Bitte gültigen Preis für Klein eingeben"); return }
 			v
@@ -262,8 +269,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 			(isWeinArtikel || isSoft) && glassDepositOptionalCheckbox.isChecked,
 			glass01Cents,
 			glass02Cents,
-			isSnack && hasLargeCheckbox.isChecked,
-			isSnack && hasSmallCheckbox.isChecked,
+			(isSnack || isAngebot) && hasLargeCheckbox.isChecked,
+			(isSnack || isAngebot) && hasSmallCheckbox.isChecked,
 			largeCents,
 			smallCents
 		)

@@ -52,7 +52,7 @@ class DailyReportActivity : AppCompatActivity() {
 		}
 		findViewById<TextView>(R.id.reportGlassesText).text = glassesText
 
-		// --- Leergut: direkte Flaschen + Flaschen aus Glasmengen (je 750ml) ---
+		// --- Leergut: Wein-Flaschen + Angebots-Flaschen ---
 		val allWeinNames = weinRecords.map { it.articleName }.distinct()
 		val leergutLines = mutableListOf<String>()
 		var leergutGesamt = 0
@@ -78,6 +78,15 @@ class DailyReportActivity : AppCompatActivity() {
 			}
 		}
 
+		// Angebots-Flaschen (separater Hilfseintrag mit servingType=BOTTLE)
+		val angebotFlaschen = records.filter {
+			it.category == CategoryType.ANGEBOT.storageValue && it.servingType == "BOTTLE"
+		}
+		if (angebotFlaschen.isNotEmpty()) {
+			leergutLines.add("Angebote (Weinflaschen): ${angebotFlaschen.size} Fl.")
+			leergutGesamt += angebotFlaschen.size
+		}
+
 		val leergutText = if (leergutLines.isEmpty()) {
 			"Kein Leergut."
 		} else {
@@ -89,6 +98,9 @@ class DailyReportActivity : AppCompatActivity() {
 			}
 		}
 		findViewById<TextView>(R.id.reportLeergutText).text = leergutText
+
+		// Gläser (Weinglasauswertung): Angebots-Gläser werden NICHT mitgezählt
+		// (weinRecords enthält nur CategoryType.WEIN, Angebote sind ausgeschlossen)
 
 		// --- Softgetränke nach Artikelname ---
 		val softRecords = records.filter { it.category == CategoryType.SOFTGETRAENKE.storageValue }
@@ -110,7 +122,25 @@ class DailyReportActivity : AppCompatActivity() {
 		}
 		findViewById<TextView>(R.id.reportSoftdrinksText).text = softText
 
-		// --- Mitarbeiterverkäufe ---
+		// --- Teller (Snacks + Angebote): Groß / Klein ---
+		val snackRecords   = records.filter { it.category == CategoryType.SNACKS.storageValue }
+		val angebotRecords = records.filter { it.category == CategoryType.ANGEBOT.storageValue }
+		// Nur Teller zählen (nicht die Flaschen-Hilfseinträge mit servingType==BOTTLE)
+		val tellerRecords  = (snackRecords + angebotRecords.filter { it.servingType != "BOTTLE" })
+		val tellerGross    = tellerRecords.count { it.servingType.uppercase() == "GROSS" }
+		val tellerKlein    = tellerRecords.count { it.servingType.uppercase() == "KLEIN" }
+		val tellerSonstige = tellerRecords.count {
+			it.servingType.uppercase() != "GROSS" && it.servingType.uppercase() != "KLEIN"
+		}
+		val tellerText = buildString {
+			appendLine("Großer Teller: $tellerGross Stück")
+			append("Kleiner Teller: $tellerKlein Stück")
+			if (tellerSonstige > 0) append("\nSonstige (ohne Größe): $tellerSonstige Stück")
+		}
+		findViewById<TextView>(R.id.reportTellerText).text =
+			if (tellerRecords.isEmpty()) "Keine Teller verkauft." else tellerText
+
+		// --- Mitarbeiterverk
 		val empRecords = records.filter { it.isEmployee }
 		val empByName  = empRecords.groupBy { it.articleName }
 		val empText = if (empByName.isEmpty()) {

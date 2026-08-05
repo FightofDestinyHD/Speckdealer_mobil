@@ -214,7 +214,8 @@ class SalesActivity : AppCompatActivity() {
 
 	private fun setupTabs() {
 		try {
-			val salesCategories = CategoryType.defaultOrder().filter { it != CategoryType.PFAND }
+			val salesCategories = CategoryType.defaultOrder()
+					.filter { it != CategoryType.PFAND && it != CategoryType.ANGEBOT }
 			salesCategories.forEach { category ->
 				tabLayout.addTab(tabLayout.newTab().setText(category.displayName).setTag(category))
 			}
@@ -241,8 +242,16 @@ class SalesActivity : AppCompatActivity() {
 		observeJob?.cancel()
 		observeJob = lifecycleScope.launch {
 			try {
-				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
-					adapter.submitList(articles)
+				if (categoryType == CategoryType.SNACKS) {
+					// Snacks-Tab: Snacks + Angebote zusammen anzeigen
+					repository.observeArticlesByCategory(CategoryType.SNACKS).collectLatest { snacks ->
+						val angebote = try { repository.getArticlesByCategory(CategoryType.ANGEBOT) } catch (e: Exception) { emptyList() }
+						adapter.submitList(snacks + angebote)
+					}
+				} else {
+					repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
+						adapter.submitList(articles)
+					}
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
@@ -257,6 +266,10 @@ class SalesActivity : AppCompatActivity() {
 		}
 		if (selectedCategory == CategoryType.SOFTGETRAENKE && (article.depositApplicable || article.glassDepositOptional)) {
 			showSoftdrinkDepositDialog(article)
+			return
+		}
+		if (article.category == CategoryType.ANGEBOT.name) {
+			showAngebotSizeDialog(article)
 			return
 		}
 		if (selectedCategory == CategoryType.SNACKS) {
@@ -328,6 +341,135 @@ class SalesActivity : AppCompatActivity() {
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
+	}
+
+	private fun showAngebotSizeDialog(article: ArticleEntity) {
+		val hasLarge = article.hasLargeOption && article.largePriceCents > 0
+		val hasSmall = article.hasSmallOption && article.smallPriceCents > 0
+		when {
+			hasLarge && hasSmall -> {
+				val options = arrayOf(
+					"Groß (${fmtCents(article.largePriceCents)})",
+					"Klein (${fmtCents(article.smallPriceCents)})"
+				)
+				AlertDialog.Builder(this)
+					.setTitle("${article.name} – Größe wählen")
+					.setItems(options) { _, which ->
+						val sizeName = if (which == 0) "Groß" else "Klein"
+						val price    = if (which == 0) article.largePriceCents else article.smallPriceCents
+						showAngebotGlaeserDialog(article, sizeName, price)
+					}
+					.setNegativeButton("Abbrechen", null)
+					.show()
+			}
+			hasLarge -> showAngebotGlaeserDialog(article, "Groß",  article.largePriceCents)
+			hasSmall -> showAngebotGlaeserDialog(article, "Klein", article.smallPriceCents)
+			else     -> showAngebotGlaeserDialog(article, "", article.priceCents)
+		}
+	}
+
+	private fun showAngebotGlaeserDialog(article: ArticleEntity, sizeName: String, priceCents: Int) {
+		var g01 = 0; var g02 = 0
+		val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_angebot_glaeser, null)
+		val g01CountTv  = dialogView.findViewById<TextView>(R.id.glas01Count)
+		val g02CountTv  = dialogView.findViewById<TextView>(R.id.glas02Count)
+		val sonderInput = dialogView.findViewById<EditText>(R.id.angebotSonderwunsch)
+
+		fun refresh() { g01CountTv.text = g01.toString(); g02CountTv.text = g02.toString() }
+		refresh()
+		dialogView.findViewById<Button>(R.id.glas01Minus).setOnClickListener { if (g01 > 0) { g01--; refresh() } }
+		dialogView.findViewById<Button>(R.id.glas01Plus).setOnClickListener  { g01++; refresh() }
+		dialogView.findViewById<Button>(R.id.glas02Minus).setOnClickListener { if (g02 > 0) { g02--; refresh() } }
+		dialogView.findViewById<Button>(R.id.glas02Plus).setOnClickListener  { g02++; refresh() }
+
+		val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
+		AlertDialog.Builder(this)
+			.setTitle("${article.name}$sizeLabel – Gläser")
+			.setView(dialogView)
+			.setPositiveButton("Weiter") { _, _ ->
+				val sw = sonderInput.text.toString().trim()
+				showAngebotPfandDialog(article, sizeName, priceCents, g01, g02, sw)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun showAngebotPfandDialog(
+		article: ArticleEntity, sizeName: String, priceCents: Int,
+		glaesser01: Int, glaesser02: Int, sonderwunsch: String
+	) {
+		AlertDialog.Builder(this)
+			.setTitle("${article.name} – Pfand (Teller)")
+			.setItems(arrayOf("Mit Tellerpfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
+				val isEmployee  = which == 2
+				val withDeposit = which == 0
+				val finalPrice  = if (isEmployee) 0 else priceCents
+				placeAngebotOrder(article, sizeName, finalPrice, withDeposit,
+					glaesser01, glaesser02, sonderwunsch, isEmployee)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun placeAngebotOrder(
+		article: ArticleEntity, sizeName: String, priceCents: Int,
+		withDeposit: Boolean, glaesser01: Int, glaesser02: Int,
+		sonderwunsch: String, isEmployee: Boolean
+	) {
+		lifecycleScope.launch(Dispatchers.IO) {
+			val actualDepositCents = if (withDeposit && !isEmployee) {
+				repository.getDepositArticleForType("teller")?.priceCents ?: 0
+			} else 0
+
+			val order = OrderRecord(
+				id           = UUID.randomUUID().toString(),
+				articleName  = article.name,
+				sizeName     = sizeName,
+				priceCents   = priceCents,
+				depositCents = actualDepositCents,
+				isEmployee   = isEmployee,
+				gurken       = 1, tomaten = 1, zwiebeln = 1, oliven = 1, brezeln = 1,
+				sonderwunsch = sonderwunsch,
+				glaesser01   = glaesser01,
+				glaesser02   = glaesser02
+			)
+			orderStorage.add(order)
+
+			// SaleRecord: Teller
+			dailySalesStorage.appendRecords(listOf(SaleRecord(
+				articleName  = article.name,
+				category     = CategoryType.ANGEBOT.storageValue,
+				servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
+				priceCents   = priceCents,
+				depositCents = actualDepositCents,
+				isEmployee   = isEmployee
+			)))
+			// SaleRecord: Flasche (für Leergut-Zählung)
+			dailySalesStorage.appendRecords(listOf(SaleRecord(
+				articleName  = "${article.name} (Flasche)",
+				category     = CategoryType.ANGEBOT.storageValue,
+				servingType  = "BOTTLE",
+				priceCents   = 0,
+				depositCents = 0,
+				isEmployee   = isEmployee
+			)))
+
+			withContext(Dispatchers.Main) {
+				val total     = priceCents + actualDepositCents
+				val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
+				val empLabel  = if (isEmployee) " – Mitarbeiter" else ""
+				addToCart(CartEntry(
+					displayName  = "${article.name}$sizeLabel$empLabel",
+					totalCents   = total,
+					articleName  = article.name,
+					category     = CategoryType.ANGEBOT.storageValue,
+					servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
+					priceCents   = priceCents,
+					depositCents = actualDepositCents,
+					isEmployee   = isEmployee
+				))
+			}
+		}
 	}
 
 	private fun showSnackSizeDialog(article: ArticleEntity) {

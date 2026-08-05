@@ -16,10 +16,15 @@ data class OrderRecord(
 	val oliven: Int,
 	val brezeln: Int,
 	val sonderwunsch: String,
+	// Angebot-Gläser (0 wenn kein Angebot)
+	val glaesser01: Int = 0,
+	val glaesser02: Int = 0,
 	val timestampMs: Long = System.currentTimeMillis()
 ) {
 	/** Lesbare Zusammenfassung der Toppings/Sonderwünsche für die Bestellliste */
 	fun buildDetailsText(): String = buildString {
+		if (glaesser01 > 0) appendLine("$glaesser01× Glas 0,1l")
+		if (glaesser02 > 0) appendLine("$glaesser02× Glas 0,2l")
 		if (gurken   != 1) appendLine(if (gurken   == 0) "Keine Gurken"   else "$gurken× Gurken")
 		if (tomaten  != 1) appendLine(if (tomaten  == 0) "Keine Tomaten"  else "$tomaten× Tomaten")
 		if (zwiebeln != 1) appendLine(if (zwiebeln == 0) "Keine Zwiebeln" else "$zwiebeln× Zwiebeln")
@@ -41,6 +46,8 @@ data class OrderRecord(
 		put("oliven", oliven)
 		put("brezeln", brezeln)
 		put("sonderwunsch", sonderwunsch)
+		put("glaesser01", glaesser01)
+		put("glaesser02", glaesser02)
 		put("timestampMs", timestampMs)
 	}
 
@@ -58,6 +65,8 @@ data class OrderRecord(
 			oliven       = obj.optInt("oliven", 1),
 			brezeln      = obj.optInt("brezeln", 1),
 			sonderwunsch = obj.optString("sonderwunsch", ""),
+			glaesser01   = obj.optInt("glaesser01", 0),
+			glaesser02   = obj.optInt("glaesser02", 0),
 			timestampMs  = obj.optLong("timestampMs", System.currentTimeMillis())
 		)
 	}
