@@ -49,6 +49,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var wineOptionsContainer: View
 	private lateinit var selectImageButton: Button
 	private lateinit var selectedImageLabel: TextView
+	private lateinit var glass01PriceInput: EditText
+	private lateinit var glass02PriceInput: EditText
 
 	private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 		if (uri != null) {
@@ -94,6 +96,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 		wineOptionsContainer = findViewById(R.id.wineOptionsContainer)
 		selectImageButton = findViewById(R.id.selectImageButton)
 		selectedImageLabel = findViewById(R.id.selectedImageLabel)
+		glass01PriceInput = findViewById(R.id.glass01PriceInput)
+		glass02PriceInput = findViewById(R.id.glass02PriceInput)
 	}
 
 	private fun setupRecyclerView() {
@@ -169,24 +173,42 @@ class ArticleManagementActivity : AppCompatActivity() {
 		}
 
 		val isPfand = selectedCategory == CategoryType.PFAND
+		val isWeinArtikel = selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked
+
+		val glass01Price = glass01PriceInput.text.toString().trim().replace(',', '.')
+		val glass01Cents = if (isWeinArtikel && hasGlass01Checkbox.isChecked) {
+			val v = ((glass01Price.toDoubleOrNull() ?: -1.0) * 100).toInt()
+			if (v < 0) { showMessage("Bitte gültigen Preis für Glas 0,1l eingeben"); return }
+			v
+		} else 0
+
+		val glass02Price = glass02PriceInput.text.toString().trim().replace(',', '.')
+		val glass02Cents = if (isWeinArtikel && hasGlass02Checkbox.isChecked) {
+			val v = ((glass02Price.toDoubleOrNull() ?: -1.0) * 100).toInt()
+			if (v < 0) { showMessage("Bitte gültigen Preis für Glas 0,2l eingeben"); return }
+			v
+		} else 0
+
+		val idToEdit = editingArticleId
 		val article = ArticleEntity(
 			name,
 			selectedCategory.storageValue,
 			priceCents,
 			if (isPfand) null else selectedImageUri,
-			selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked,
+			isWeinArtikel,
 			hasBottleCheckbox.isChecked,
 			hasGlass01Checkbox.isChecked,
 			hasGlass02Checkbox.isChecked,
 			!isPfand && depositApplicableCheckbox.isChecked,
-			selectedCategory == CategoryType.WEIN && glassDepositOptionalCheckbox.isChecked
+			selectedCategory == CategoryType.WEIN && glassDepositOptionalCheckbox.isChecked,
+			glass01Cents,
+			glass02Cents
 		)
-
-		editingArticleId?.let { article.id = it }
+		idToEdit?.let { article.id = it }
 
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
-				if (editingArticleId == null) {
+				if (idToEdit == null) {
 					repository.saveArticle(article)
 				} else {
 					repository.updateArticle(article)
@@ -211,6 +233,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 		selectedImageUri = article.imageUri
 		selectedImageLabel.text = article.imageUri ?: "Kein Bild gewählt"
 		isWeinCheckbox.isChecked = article.isWein
+		glass01PriceInput.setText(if (article.glass01PriceCents > 0) String.format(Locale.US, "%.2f", article.glass01PriceCents / 100.0) else "")
+		glass02PriceInput.setText(if (article.glass02PriceCents > 0) String.format(Locale.US, "%.2f", article.glass02PriceCents / 100.0) else "")
 		hasBottleCheckbox.isChecked = article.hasBottleOption
 		hasGlass01Checkbox.isChecked = article.hasGlass01Option
 		hasGlass02Checkbox.isChecked = article.hasGlass02Option
@@ -225,6 +249,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 		articlePriceInput.setText("")
 		selectedImageUri = null
 		selectedImageLabel.text = "Kein Bild gewählt"
+		glass01PriceInput.setText("")
+		glass02PriceInput.setText("")
 		isWeinCheckbox.isChecked = false
 		hasBottleCheckbox.isChecked = false
 		hasGlass01Checkbox.isChecked = false

@@ -1,5 +1,6 @@
 package com.speckdealer.app
 
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.view.LayoutInflater
@@ -50,16 +51,23 @@ class SalesArticleAdapter(
 
 			if (!item.imageUri.isNullOrBlank()) {
 				try {
-					val uri = if (item.imageUri.startsWith("/")) {
+					if (item.imageUri.startsWith("/")) {
+						// Interner Dateipfad → direkt per BitmapFactory laden (kein URI-Berechtigungsproblem)
 						val file = File(item.imageUri)
-						if (file.exists()) Uri.fromFile(file) else null
+						if (file.exists()) {
+							val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+							if (bitmap != null) {
+								imageView.setImageBitmap(bitmap)
+							} else {
+								imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+							}
+						} else {
+							Log.w("SalesArticleAdapter", "Bilddatei nicht gefunden: ${item.imageUri}")
+							imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+						}
 					} else {
-						Uri.parse(item.imageUri)
-					}
-					if (uri != null) {
-						imageView.setImageURI(uri)
-					} else {
-						imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+						// Alte content://-URI → per setImageURI, SecurityException abfangen
+						imageView.setImageURI(Uri.parse(item.imageUri))
 					}
 				} catch (e: Exception) {
 					Log.w("SalesArticleAdapter", "Bild konnte nicht geladen werden: ${item.imageUri}", e)
