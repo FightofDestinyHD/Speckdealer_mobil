@@ -95,7 +95,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="6dp"
-			android:text="Tages&#10;abschluss" />
+			android:text="Tages-\nabschluss" />
 
 		<TextView
 			android:layout_width="72dp"
