@@ -64,113 +64,143 @@
 		android:orientation="vertical"
 		android:padding="12dp">
 
-		<TextView
-			android:id="@+id/selectedCategoryTitle"
+		<androidx.core.widget.NestedScrollView
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:textStyle="bold" />
+			android:layout_height="match_parent"
+			android:fillViewport="true">
 
-		<androidx.recyclerview.widget.RecyclerView
-			android:id="@+id/articleRecyclerView"
-			android:layout_width="match_parent"
-			android:layout_height="0dp"
-			android:layout_marginTop="8dp"
-			android:layout_weight="1" />
-
-		<EditText
-			android:id="@+id/articleNameInput"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="8dp"
-			android:hint="Artikelname" />
-
-		<EditText
-			android:id="@+id/articlePriceInput"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:hint="Preis (z. B. 3.50)"
-			android:inputType="numberDecimal" />
-
-		<CheckBox
-			android:id="@+id/isWeinCheckbox"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:text="Weinartikel (Flasche/Glas)" />
-
-		<LinearLayout
-			android:id="@+id/wineOptionsContainer"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:orientation="vertical">
-
-			<CheckBox
-				android:id="@+id/hasBottleCheckbox"
+			<LinearLayout
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:checked="true"
-				android:text="Flasche" />
+				android:orientation="vertical">
 
-			<CheckBox
-				android:id="@+id/hasGlass01Checkbox"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:text="Glas 0,1l" />
+				<TextView
+					android:id="@+id/selectedCategoryTitle"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:textStyle="bold" />
 
-			<CheckBox
-				android:id="@+id/hasGlass02Checkbox"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:text="Glas 0,2l" />
+				<androidx.recyclerview.widget.RecyclerView
+					android:id="@+id/articleRecyclerView"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:nestedScrollingEnabled="false" />
 
-			<CheckBox
-				android:id="@+id/glassDepositOptionalCheckbox"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:text="Pfand bei Glas wählbar" />
-		</LinearLayout>
+				<EditText
+					android:id="@+id/articleNameInput"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:hint="Artikelname" />
 
-		<CheckBox
-			android:id="@+id/depositApplicableCheckbox"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:checked="true"
-			android:text="Pfand automatisch anwenden" />
+				<EditText
+					android:id="@+id/articlePriceInput"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="6dp"
+					android:hint="Preis (z. B. 3.50)"
+					android:inputType="numberDecimal" />
 
-		<Button
-			android:id="@+id/selectImageButton"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="4dp"
-			android:text="Bild auswählen" />
+				<CheckBox
+					android:id="@+id/isWeinCheckbox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Weinartikel (Flasche/Glas)" />
 
-		<TextView
-			android:id="@+id/selectedImageLabel"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:text="Kein Bild gewählt" />
+				<LinearLayout
+					android:id="@+id/wineOptionsContainer"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:orientation="vertical">
 
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="8dp"
-			android:orientation="horizontal">
+					<CheckBox
+						android:id="@+id/hasBottleCheckbox"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:checked="true"
+						android:text="Flasche" />
 
-			<Button
-				android:id="@+id/saveArticleButton"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:text="Speichern" />
+					<CheckBox
+							android:id="@+id/hasGlass01Checkbox"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="Glas 0,1l" />
 
-			<Button
-				android:id="@+id/clearArticleButton"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="8dp"
-				android:layout_weight="1"
-				android:text="Leeren" />
-		</LinearLayout>
+						<EditText
+							android:id="@+id/glass01PriceInput"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginStart="16dp"
+							android:hint="Preis Glas 0,1l (z. B. 2.50)"
+							android:inputType="numberDecimal" />
+
+						<CheckBox
+							android:id="@+id/hasGlass02Checkbox"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="Glas 0,2l" />
+
+						<EditText
+							android:id="@+id/glass02PriceInput"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginStart="16dp"
+							android:hint="Preis Glas 0,2l (z. B. 3.50)"
+							android:inputType="numberDecimal" />
+
+					<CheckBox
+						android:id="@+id/glassDepositOptionalCheckbox"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Pfand bei Glas wählbar" />
+				</LinearLayout>
+
+				<CheckBox
+					android:id="@+id/depositApplicableCheckbox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:checked="true"
+					android:text="Pfand automatisch anwenden" />
+
+				<Button
+					android:id="@+id/selectImageButton"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="4dp"
+					android:text="Bild auswählen" />
+
+				<TextView
+					android:id="@+id/selectedImageLabel"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Kein Bild gewählt" />
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:orientation="horizontal">
+
+					<Button
+						android:id="@+id/saveArticleButton"
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_weight="1"
+						android:text="Speichern" />
+
+					<Button
+						android:id="@+id/clearArticleButton"
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_marginStart="8dp"
+						android:layout_weight="1"
+						android:text="Leeren" />
+				</LinearLayout>
+
+			</LinearLayout>
+		</androidx.core.widget.NestedScrollView>
+
 	</LinearLayout>
 
 </LinearLayout>

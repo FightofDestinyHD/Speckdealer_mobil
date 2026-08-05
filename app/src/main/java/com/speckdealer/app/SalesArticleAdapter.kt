@@ -42,11 +42,33 @@ class SalesArticleAdapter(
 		private val imageView: ImageView = itemView.findViewById(R.id.salesArticleImage)
 		private val nameText: TextView = itemView.findViewById(R.id.salesArticleName)
 		private val priceText: TextView = itemView.findViewById(R.id.salesArticlePrice)
+		private val glass01PriceText: TextView = itemView.findViewById(R.id.salesArticleGlass01Price)
+		private val glass02PriceText: TextView = itemView.findViewById(R.id.salesArticleGlass02Price)
 		private val metaText: TextView = itemView.findViewById(R.id.salesArticleMeta)
 
 		fun bind(item: ArticleEntity) {
 			nameText.text = item.name
-			priceText.text = currencyFormatter.format(item.priceCents / 100.0)
+
+			// Hauptpreis: Flasche oder Standardpreis
+			val bottleLabel = if (item.isWein && item.hasBottleOption) "Flasche: " else ""
+			priceText.text = "$bottleLabel${currencyFormatter.format(item.priceCents / 100.0)}"
+
+			// Glas 0,1l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
+			if (item.isWein && item.hasGlass01Option && item.glass01PriceCents > 0) {
+				glass01PriceText.text = "Glas 0,1l: ${currencyFormatter.format(item.glass01PriceCents / 100.0)}"
+				glass01PriceText.visibility = View.VISIBLE
+			} else {
+				glass01PriceText.visibility = View.GONE
+			}
+
+			// Glas 0,2l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
+			if (item.isWein && item.hasGlass02Option && item.glass02PriceCents > 0) {
+				glass02PriceText.text = "Glas 0,2l: ${currencyFormatter.format(item.glass02PriceCents / 100.0)}"
+				glass02PriceText.visibility = View.VISIBLE
+			} else {
+				glass02PriceText.visibility = View.GONE
+			}
+
 			metaText.text = buildMetaText(item)
 
 			if (!item.imageUri.isNullOrBlank()) {

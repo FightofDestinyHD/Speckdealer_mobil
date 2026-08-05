@@ -40,9 +40,16 @@ public class ArticleEntity {
 	@ColumnInfo(name = "glass_deposit_optional")
 	public boolean glassDepositOptional;
 
+	@ColumnInfo(name = "glass01_price_cents")
+	public int glass01PriceCents;
+
+	@ColumnInfo(name = "glass02_price_cents")
+	public int glass02PriceCents;
+
 	public ArticleEntity(String name, String category, int priceCents, String imageUri, boolean isWein,
 						boolean hasBottleOption, boolean hasGlass01Option, boolean hasGlass02Option,
-						boolean depositApplicable, boolean glassDepositOptional) {
+						boolean depositApplicable, boolean glassDepositOptional,
+						int glass01PriceCents, int glass02PriceCents) {
 		this.name = name;
 		this.category = category;
 		this.priceCents = priceCents;
@@ -53,6 +60,8 @@ public class ArticleEntity {
 		this.hasGlass02Option = hasGlass02Option;
 		this.depositApplicable = depositApplicable;
 		this.glassDepositOptional = glassDepositOptional;
+		this.glass01PriceCents = glass01PriceCents;
+		this.glass02PriceCents = glass02PriceCents;
 	}
 
 	public JSONObject toJson() {
@@ -69,6 +78,8 @@ public class ArticleEntity {
 			obj.put("hasGlass02Option", hasGlass02Option);
 			obj.put("depositApplicable", depositApplicable);
 			obj.put("glassDepositOptional", glassDepositOptional);
+			obj.put("glass01PriceCents", glass01PriceCents);
+			obj.put("glass02PriceCents", glass02PriceCents);
 			return obj;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -88,7 +99,9 @@ public class ArticleEntity {
 				obj.getBoolean("hasGlass01Option"),
 				obj.getBoolean("hasGlass02Option"),
 				obj.getBoolean("depositApplicable"),
-				obj.getBoolean("glassDepositOptional")
+				obj.getBoolean("glassDepositOptional"),
+				obj.optInt("glass01PriceCents", obj.optInt("priceCents", 0)),
+				obj.optInt("glass02PriceCents", obj.optInt("priceCents", 0))
 			);
 			article.id = obj.getLong("id");
 			return article;

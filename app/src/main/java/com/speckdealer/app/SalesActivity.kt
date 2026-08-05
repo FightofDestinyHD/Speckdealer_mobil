@@ -1,10 +1,12 @@
 package com.speckdealer.app
 
 import android.os.Bundle
+import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
@@ -20,15 +22,19 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
+data class CartEntry(val displayName: String, val totalCents: Int)
+
 class SalesActivity : AppCompatActivity() {
 
 	private lateinit var repository: ArticleRepository
 	private lateinit var tabLayout: TabLayout
-	private lateinit var salesInfoText: TextView
+	private lateinit var cartTotalText: TextView
 	private lateinit var adapter: SalesArticleAdapter
+	private lateinit var cartAdapter: CartAdapter
 	private var observeJob: Job? = null
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.GERMANY)
+	private val cartItems = mutableListOf<CartEntry>()
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -37,8 +43,10 @@ class SalesActivity : AppCompatActivity() {
 		try {
 			repository = AppGraph.repository(this)
 			tabLayout = findViewById(R.id.salesTabLayout)
-			salesInfoText = findViewById(R.id.salesSelectionInfo)
-			setupRecyclerView()
+			cartTotalText = findViewById(R.id.cartTotalText)
+			setupArticleRecyclerView()
+			setupCartRecyclerView()
+			setupCartButtons()
 			setupTabs()
 		} catch (e: Exception) {
 			e.printStackTrace()
@@ -52,12 +60,58 @@ class SalesActivity : AppCompatActivity() {
 		}
 	}
 
-	private fun setupRecyclerView() {
+	private fun setupArticleRecyclerView() {
 		adapter = SalesArticleAdapter { article -> handleArticleSelection(article) }
 		findViewById<RecyclerView>(R.id.salesArticleRecyclerView).apply {
-			layoutManager = LinearLayoutManager(this@SalesActivity)
+			layoutManager = GridLayoutManager(this@SalesActivity, 3)
 			adapter = this@SalesActivity.adapter
 		}
+	}
+
+	private fun setupCartRecyclerView() {
+		cartAdapter = CartAdapter { position -> removeFromCart(position) }
+		findViewById<RecyclerView>(R.id.cartRecyclerView).apply {
+			layoutManager = LinearLayoutManager(this@SalesActivity)
+			adapter = cartAdapter
+		}
+	}
+
+	private fun setupCartButtons() {
+		findViewById<Button>(R.id.cartClearButton).setOnClickListener {
+			cartItems.clear()
+			updateCart()
+		}
+		findViewById<Button>(R.id.cartCheckoutButton).setOnClickListener {
+			if (cartItems.isEmpty()) return@setOnClickListener
+			val total = currencyFormatter.format(cartItems.sumOf { it.totalCents } / 100.0)
+			AlertDialog.Builder(this)
+				.setTitle("Kassieren")
+				.setMessage("Gesamtbetrag: $total\n\nKasse abschließen und Warenkorb leeren?")
+				.setPositiveButton("Kassieren") { _, _ ->
+					cartItems.clear()
+					updateCart()
+				}
+				.setNegativeButton("Abbrechen", null)
+				.show()
+		}
+	}
+
+	private fun addToCart(entry: CartEntry) {
+		cartItems.add(entry)
+		updateCart()
+	}
+
+	private fun removeFromCart(position: Int) {
+		if (position in cartItems.indices) {
+			cartItems.removeAt(position)
+			updateCart()
+		}
+	}
+
+	private fun updateCart() {
+		cartAdapter.submitList(cartItems.toList())
+		val total = cartItems.sumOf { it.totalCents }
+		cartTotalText.text = "Gesamt: ${currencyFormatter.format(total / 100.0)}"
 	}
 
 	private fun setupTabs() {
@@ -72,7 +126,6 @@ class SalesActivity : AppCompatActivity() {
 					val category = tab.tag as? CategoryType ?: return
 					selectCategory(category)
 				}
-
 				override fun onTabUnselected(tab: TabLayout.Tab) = Unit
 				override fun onTabReselected(tab: TabLayout.Tab) = Unit
 			})
@@ -92,11 +145,9 @@ class SalesActivity : AppCompatActivity() {
 			try {
 				repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
 					adapter.submitList(articles)
-					salesInfoText.text = "${categoryType.displayName}: ${articles.size} Artikel"
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
-				salesInfoText.text = "Fehler beim Laden: ${e.localizedMessage}"
 			}
 		}
 	}
@@ -106,10 +157,9 @@ class SalesActivity : AppCompatActivity() {
 			showWineServingDialog(article)
 			return
 		}
-
 		val depositTypeToken = detectNonWineDepositType(article)
 		val applyDeposit = article.depositApplicable && depositTypeToken != null
-		finalizeSelection(article, article.name, applyDeposit, depositTypeToken)
+		finalizeSelection(article, article.name, applyDeposit, depositTypeToken, article.priceCents)
 	}
 
 	private fun showWineServingDialog(article: ArticleEntity) {
@@ -123,17 +173,22 @@ class SalesActivity : AppCompatActivity() {
 			.setTitle(article.name)
 			.setItems(options.map { it.label }.toTypedArray()) { _, which ->
 				val selected = options[which]
+				val priceCents = when (selected) {
+					WineServingType.GLASS_01 -> if (article.glass01PriceCents > 0) article.glass01PriceCents else article.priceCents
+					WineServingType.GLASS_02 -> if (article.glass02PriceCents > 0) article.glass02PriceCents else article.priceCents
+					WineServingType.BOTTLE  -> article.priceCents
+				}
 				if (selected.requiresGlassDepositChoice) {
-					showGlassDepositChoiceDialog(article, selected)
+					showGlassDepositChoiceDialog(article, selected, priceCents)
 				} else {
-					finalizeSelection(article, "${article.name} - ${selected.label}", false, null)
+					finalizeSelection(article, "${article.name} - ${selected.label}", false, null, priceCents)
 				}
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
 	}
 
-	private fun showGlassDepositChoiceDialog(article: ArticleEntity, servingType: WineServingType) {
+	private fun showGlassDepositChoiceDialog(article: ArticleEntity, servingType: WineServingType, priceCents: Int) {
 		AlertDialog.Builder(this)
 			.setTitle("Pfand für ${servingType.label}")
 			.setItems(arrayOf("Mit Pfand", "Ohne Pfand")) { _, which ->
@@ -142,7 +197,8 @@ class SalesActivity : AppCompatActivity() {
 					article = article,
 					displayName = "${article.name} - ${servingType.label}",
 					applyDeposit = withDeposit,
-					depositTypeToken = "glas"
+					depositTypeToken = "glas",
+					customPriceCents = priceCents
 				)
 			}
 			.setNegativeButton("Abbrechen", null)
@@ -152,8 +208,8 @@ class SalesActivity : AppCompatActivity() {
 	private fun detectNonWineDepositType(article: ArticleEntity): String? {
 		val normalized = article.name.lowercase(Locale.GERMANY)
 		return when {
-			normalized.contains("glas") -> "glas"
-			normalized.contains("teller") -> "teller"
+			normalized.contains("glas")    -> "glas"
+			normalized.contains("teller")  -> "teller"
 			normalized.contains("flasche") && selectedCategory != CategoryType.WEIN -> "flasche"
 			else -> null
 		}
@@ -163,32 +219,29 @@ class SalesActivity : AppCompatActivity() {
 		article: ArticleEntity,
 		displayName: String,
 		applyDeposit: Boolean,
-		depositTypeToken: String?
+		depositTypeToken: String?,
+		customPriceCents: Int = article.priceCents
 	) {
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
 				val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
 					repository.getDepositArticleForType(depositTypeToken)
+				} else null
+
+				val depositCents = depositArticle?.priceCents ?: 0
+				val totalCents = customPriceCents + depositCents
+
+				val entryName = if (depositArticle != null) {
+					"$displayName + ${depositArticle.name}"
 				} else {
-					null
-				}
-				val totalCents = article.priceCents + (depositArticle?.priceCents ?: 0)
-				val depositText = if (depositArticle != null) {
-					" + Pfand ${currencyFormatter.format(depositArticle.priceCents / 100.0)} (${depositArticle.name})"
-				} else if (applyDeposit) {
-					" + Pfandtyp '$depositTypeToken' nicht gefunden"
-				} else {
-					""
+					displayName
 				}
 
 				withContext(Dispatchers.Main) {
-					salesInfoText.text = "Ausgewählt: $displayName${depositText} = ${currencyFormatter.format(totalCents / 100.0)}"
+					addToCart(CartEntry(entryName, totalCents))
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()
-				withContext(Dispatchers.Main) {
-					salesInfoText.text = "Fehler: ${e.localizedMessage}"
-				}
 			}
 		}
 	}

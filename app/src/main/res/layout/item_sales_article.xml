@@ -2,45 +2,70 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:layout_marginBottom="8dp"
-	android:background="#33FFFFFF"
+	android:layout_margin="4dp"
+	android:background="#EEF5FF"
 	android:clickable="true"
+	android:elevation="2dp"
 	android:focusable="true"
 	android:foreground="?attr/selectableItemBackground"
-	android:gravity="center_vertical"
-	android:orientation="horizontal"
-	android:padding="10dp">
+	android:orientation="vertical"
+	android:padding="8dp">
 
+	<!-- Artikelbild oben zentriert -->
 	<ImageView
 		android:id="@+id/salesArticleImage"
-		android:layout_width="56dp"
-		android:layout_height="56dp"
+		android:layout_width="match_parent"
+		android:layout_height="80dp"
 		android:contentDescription="Artikelbild"
 		android:scaleType="centerCrop"
 		android:src="@android:drawable/ic_menu_gallery" />
 
-	<LinearLayout
-		android:layout_width="0dp"
+	<!-- Artikelname -->
+	<TextView
+		android:id="@+id/salesArticleName"
+		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:layout_marginStart="10dp"
-		android:layout_weight="1"
-		android:orientation="vertical">
+		android:layout_marginTop="6dp"
+		android:gravity="center"
+		android:textSize="14sp"
+		android:textStyle="bold" />
 
-		<TextView
-			android:id="@+id/salesArticleName"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:textStyle="bold" />
+	<!-- Hauptpreis (Flasche / Standardpreis) -->
+	<TextView
+		android:id="@+id/salesArticlePrice"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:textColor="#1B5E20"
+		android:textSize="13sp"
+		android:textStyle="bold" />
 
-		<TextView
-			android:id="@+id/salesArticlePrice"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content" />
+	<!-- Glaspreise (nur sichtbar wenn gesetzt) -->
+	<TextView
+		android:id="@+id/salesArticleGlass01Price"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:textColor="#2E7D32"
+		android:textSize="11sp"
+		android:visibility="gone" />
 
-		<TextView
-			android:id="@+id/salesArticleMeta"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:textSize="12sp" />
-	</LinearLayout>
+	<TextView
+		android:id="@+id/salesArticleGlass02Price"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:textColor="#2E7D32"
+		android:textSize="11sp"
+		android:visibility="gone" />
+
+	<!-- Meta (Wein / Pfand usw.) -->
+	<TextView
+		android:id="@+id/salesArticleMeta"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:textColor="#777777"
+		android:textSize="11sp" />
+
 </LinearLayout>

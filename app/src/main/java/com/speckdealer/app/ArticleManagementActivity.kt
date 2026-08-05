@@ -9,6 +9,7 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -101,7 +102,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun setupRecyclerView() {
-		adapter = ArticleAdapter { article -> loadArticleForEditing(article) }
+		adapter = ArticleAdapter(
+			onEditClicked = { article -> loadArticleForEditing(article) },
+			onDeleteClicked = { article -> confirmDelete(article) }
+		)
 		findViewById<RecyclerView>(R.id.articleRecyclerView).apply {
 			layoutManager = LinearLayoutManager(this@ArticleManagementActivity)
 			adapter = this@ArticleManagementActivity.adapter
@@ -258,6 +262,28 @@ class ArticleManagementActivity : AppCompatActivity() {
 		depositApplicableCheckbox.isChecked = false
 		glassDepositOptionalCheckbox.isChecked = false
 		wineOptionsContainer.visibility = View.GONE
+	}
+
+	private fun confirmDelete(article: ArticleEntity) {
+		AlertDialog.Builder(this)
+			.setTitle("Artikel löschen")
+			.setMessage("\"${article.name}\" wirklich löschen?")
+			.setPositiveButton("Löschen") { _, _ ->
+				lifecycleScope.launch(Dispatchers.IO) {
+					try {
+						repository.deleteArticle(article)
+						launch(Dispatchers.Main) {
+							if (editingArticleId == article.id) clearForm()
+							showMessage("\"${article.name}\" gelöscht")
+						}
+					} catch (e: Exception) {
+						e.printStackTrace()
+						launch(Dispatchers.Main) { showMessage("Fehler beim Löschen: ${e.localizedMessage}") }
+					}
+				}
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
 	}
 
 	private fun showMessage(message: String) {

@@ -2,10 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:background="#33FFFFFF"
 	android:gravity="center_vertical"
 	android:orientation="horizontal"
-	android:padding="8dp">
+	android:padding="4dp">
 
 	<LinearLayout
 		android:layout_width="0dp"
@@ -14,29 +13,31 @@
 		android:orientation="vertical">
 
 		<TextView
-			android:id="@+id/articleNameText"
+			android:id="@+id/cartEntryName"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
+			android:textSize="13sp"
 			android:textStyle="bold" />
 
 		<TextView
-			android:id="@+id/articleMetaText"
+			android:id="@+id/cartEntryPrice"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content" />
+			android:layout_height="wrap_content"
+			android:textColor="#1B5E20"
+			android:textSize="13sp" />
+
 	</LinearLayout>
 
 	<Button
-		android:id="@+id/editArticleButton"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:text="Bearbeiten" />
-
-	<Button
-		android:id="@+id/deleteArticleButton"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginStart="4dp"
+		android:id="@+id/cartEntryRemoveButton"
+		android:layout_width="32dp"
+		android:layout_height="32dp"
 		android:backgroundTint="#D32F2F"
-		android:text="Löschen"
-		android:textColor="#FFFFFF" />
+		android:minWidth="0dp"
+		android:minHeight="0dp"
+		android:padding="0dp"
+		android:text="✕"
+		android:textColor="#FFFFFF"
+		android:textSize="12sp" />
+
 </LinearLayout>

@@ -20,8 +20,8 @@ android {
 		applicationId = "com.speckdealer.app"
 		minSdkVersion(24)
 		targetSdkVersion(31)
-		versionCode = 23
-		versionName = "0.1.23"
+		versionCode = 24
+		versionName = "0.1.24"
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}

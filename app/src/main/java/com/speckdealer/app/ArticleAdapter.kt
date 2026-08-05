@@ -11,7 +11,8 @@ import java.text.NumberFormat
 import java.util.Locale
 
 class ArticleAdapter(
-	private val onEditClicked: (ArticleEntity) -> Unit
+	private val onEditClicked: (ArticleEntity) -> Unit,
+	private val onDeleteClicked: (ArticleEntity) -> Unit
 ) : RecyclerView.Adapter<ArticleAdapter.ArticleViewHolder>() {
 
 	private val items = mutableListOf<ArticleEntity>()
@@ -38,11 +39,13 @@ class ArticleAdapter(
 		private val nameText: TextView = itemView.findViewById(R.id.articleNameText)
 		private val metaText: TextView = itemView.findViewById(R.id.articleMetaText)
 		private val editButton: Button = itemView.findViewById(R.id.editArticleButton)
+		private val deleteButton: Button = itemView.findViewById(R.id.deleteArticleButton)
 
 		fun bind(item: ArticleEntity) {
 			nameText.text = item.name
 			metaText.text = currencyFormatter.format(item.priceCents / 100.0)
 			editButton.setOnClickListener { onEditClicked(item) }
+			deleteButton.setOnClickListener { onDeleteClicked(item) }
 		}
 	}
 }
