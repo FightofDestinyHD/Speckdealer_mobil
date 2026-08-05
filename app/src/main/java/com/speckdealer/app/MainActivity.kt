@@ -269,9 +269,21 @@ class MainActivity : AppCompatActivity() {
 		Snackbar.make(findViewById(android.R.id.content), getString(R.string.update_downloading), Snackbar.LENGTH_SHORT).show()
 		thread {
 			try {
+				// GitHub API abfragen um echte APK-Download-URL zu ermitteln
+				val apkUrl = resolveLatestApkUrl()
+				if (apkUrl == null) {
+					runOnUiThread {
+						Snackbar.make(
+							findViewById(android.R.id.content),
+							"Kein APK-Asset im letzten Release gefunden.",
+							Snackbar.LENGTH_LONG
+						).show()
+					}
+					return@thread
+				}
 				val outputDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
 				val outputFile = File(outputDir, "speckdealer-update.apk")
-				downloadFile(LATEST_APK_URL, outputFile)
+				downloadFile(apkUrl, outputFile)
 				runOnUiThread { installDownloadedApk(outputFile) }
 			} catch (_: Exception) {
 				runOnUiThread {
@@ -283,6 +295,33 @@ class MainActivity : AppCompatActivity() {
 				}
 			}
 		}
+	}
+
+	/** Fragt die GitHub API ab und gibt die browser_download_url des ersten .apk-Assets zurück */
+	private fun resolveLatestApkUrl(): String? {
+		val connection = java.net.URL(GITHUB_API_LATEST).openConnection() as HttpURLConnection
+		connection.setRequestProperty("Accept", "application/vnd.github+json")
+		connection.setRequestProperty("User-Agent", "SpeckdealerApp")
+		connection.connectTimeout = 10000
+		connection.readTimeout = 10000
+		connection.connect()
+		val json = connection.inputStream.bufferedReader().use { it.readText() }
+		connection.disconnect()
+		// assets-Array parsen
+		val assetsStart = json.indexOf("\"assets\"")
+		if (assetsStart < 0) return null
+		var idx = json.indexOf('[', assetsStart)
+		while (idx >= 0) {
+			val urlKey = json.indexOf("\"browser_download_url\"", idx)
+			if (urlKey < 0) break
+			val colon = json.indexOf(':', urlKey)
+			val q1 = json.indexOf('"', colon + 1)
+			val q2 = json.indexOf('"', q1 + 1)
+			val url = json.substring(q1 + 1, q2)
+			if (url.endsWith(".apk")) return url
+			idx = q2
+		}
+		return null
 	}
 
 	private fun downloadFile(url: String, targetFile: File) {
@@ -331,6 +370,6 @@ class MainActivity : AppCompatActivity() {
 		private const val PREFERENCES_NAME = "speckdealer_prefs"
 		private const val KEY_LAST_VERSION_CODE = "last_version_code"
 		private const val KEY_LAST_VERSION_NAME = "last_version_name"
-		private const val LATEST_APK_URL = "https://github.com/FightofDestinyHD/Speckdealer_mobil/releases/latest/download/app-release.apk"
+		private const val GITHUB_API_LATEST = "https://api.github.com/repos/FightofDestinyHD/Speckdealer_mobil/releases/latest"
 	}
 }
