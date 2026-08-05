@@ -61,6 +61,24 @@
 				android:background="#CCFFFFFF"
 				android:padding="8dp" />
 
+			<!-- Leergut -->
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:text="🍾 Leergut (Weinflaschen)"
+				android:paddingTop="12dp"
+				android:paddingBottom="4dp" />
+
+			<TextView
+				android:id="@+id/reportLeergutText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="14sp"
+				android:background="#CCFFFFFF"
+				android:padding="8dp" />
+
 			<!-- Softgetränke -->
 			<TextView
 				android:layout_width="match_parent"

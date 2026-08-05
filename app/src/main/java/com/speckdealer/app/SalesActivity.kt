@@ -249,7 +249,7 @@ class SalesActivity : AppCompatActivity() {
 			showWineServingDialog(article)
 			return
 		}
-		if (selectedCategory == CategoryType.SOFTGETRAENKE && article.depositApplicable) {
+		if (selectedCategory == CategoryType.SOFTGETRAENKE && (article.depositApplicable || article.glassDepositOptional)) {
 			showSoftdrinkDepositDialog(article)
 			return
 		}
@@ -292,36 +292,30 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	private fun showSoftdrinkDepositDialog(article: ArticleEntity) {
-		if (article.glassDepositOptional) {
-			// Nutzer darf wählen ob Glas-Pfand berechnet wird
-			AlertDialog.Builder(this)
-				.setTitle(article.name)
-				.setItems(arrayOf("Mit Glaspfand", "Ohne Glaspfand", "Mitarbeiter")) { _, which ->
-					when (which) {
-						2 -> finalizeSelection(
-							article = article,
-							displayName = "${article.name} (Mitarbeiter)",
-							applyDeposit = false,
-							depositTypeToken = null,
-							customPriceCents = 0,
-							isEmployee = true
-						)
-						else -> finalizeSelection(
-							article = article,
-							displayName = article.name,
-							applyDeposit = which == 0,
-							depositTypeToken = "glas",
-							customPriceCents = article.priceCents,
-							isEmployee = false
-						)
-					}
+		AlertDialog.Builder(this)
+			.setTitle(article.name)
+			.setItems(arrayOf("Mit Pfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
+				when (which) {
+					2 -> finalizeSelection(
+						article = article,
+						displayName = "${article.name} (Mitarbeiter)",
+						applyDeposit = false,
+						depositTypeToken = null,
+						customPriceCents = 0,
+						isEmployee = true
+					)
+					else -> finalizeSelection(
+						article = article,
+						displayName = article.name,
+						applyDeposit = which == 0,
+						depositTypeToken = "glas",
+						customPriceCents = article.priceCents,
+						isEmployee = false
+					)
 				}
-				.setNegativeButton("Abbrechen", null)
-				.show()
-		} else {
-			// Pfand immer automatisch
-			finalizeSelection(article, article.name, true, "glas", article.priceCents, isEmployee = false)
-		}
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
 	}
 
 	private fun showWineServingDialog(article: ArticleEntity) {

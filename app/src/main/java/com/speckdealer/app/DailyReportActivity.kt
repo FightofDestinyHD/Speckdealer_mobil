@@ -32,27 +32,63 @@ class DailyReportActivity : AppCompatActivity() {
 		val records = storage.loadAll()
 
 		// --- Finanzen ---
-		val revenueNormal   = records.filter { !it.isEmployee }.sumOf { it.priceCents + it.depositCents }
+		val revenueNormal   = records.filter { !it.isEmployee }.sumOf { it.priceCents }
 		val revenueEmployee = records.filter {  it.isEmployee }.size
 		val financeText = buildString {
 			appendLine("Umsatz (ohne Mitarbeiter): ${currencyFmt.format(revenueNormal / 100.0)}")
 			appendLine("Mitarbeiterverkäufe (kostenlos): $revenueEmployee Stück")
-			val depositTotal = records.sumOf { it.depositCents }
-			appendLine("Pfandeinnahmen gesamt: ${currencyFmt.format(depositTotal / 100.0)}")
 		}
 		findViewById<TextView>(R.id.reportFinanceText).text = financeText.trimEnd()
 
-		// --- Weingläser ---
-		val glass01 = records.count { it.category == CategoryType.WEIN.storageValue && it.servingType == "GLASS_01" }
-		val glass02 = records.count { it.category == CategoryType.WEIN.storageValue && it.servingType == "GLASS_02" }
-		// Wertigkeit: 0,1l = 0,5 Punkte, 0,2l = 1 Punkt
+		// --- Weingläser & Weinflaschen ---
+		val weinRecords = records.filter { it.category == CategoryType.WEIN.storageValue }
+		val glass01 = weinRecords.count { it.servingType == "GLASS_01" }
+		val glass02 = weinRecords.count { it.servingType == "GLASS_02" }
 		val glassValue = glass01 * 0.5 + glass02 * 1.0
 		val glassesText = buildString {
 			appendLine("Glas 0,1l (halbwertig): $glass01 Stück")
 			appendLine("Glas 0,2l (vollwertig): $glass02 Stück")
-			appendLine("Gesamtwertigkeit: $glassValue Einheiten")
+			append("Gesamtwertigkeit: $glassValue Einheiten")
 		}
-		findViewById<TextView>(R.id.reportGlassesText).text = glassesText.trimEnd()
+		findViewById<TextView>(R.id.reportGlassesText).text = glassesText
+
+		// --- Leergut: direkte Flaschen + Flaschen aus Glasmengen (je 750ml) ---
+		val allWeinNames = weinRecords.map { it.articleName }.distinct()
+		val leergutLines = mutableListOf<String>()
+		var leergutGesamt = 0
+
+		allWeinNames.forEach { name ->
+			val nameRecords = weinRecords.filter { it.articleName == name }
+			val mlGlaeser = nameRecords.count { it.servingType == "GLASS_01" } * 100 +
+							nameRecords.count { it.servingType == "GLASS_02" } * 200
+			val flaschenAusGlaesern = mlGlaeser / 750
+			val direktFlaschen = nameRecords.count { it.servingType == "BOTTLE" }
+			val gesamt = flaschenAusGlaesern + direktFlaschen
+			if (gesamt > 0) {
+				leergutLines.add(buildString {
+					append("$name: $gesamt Fl.")
+					if (direktFlaschen > 0 && flaschenAusGlaesern > 0)
+						append("  (direkt: $direktFlaschen, aus Gläsern: $flaschenAusGlaesern)")
+					else if (direktFlaschen > 0)
+						append("  (direkt verkauft)")
+					else
+						append("  (aus Gläsern: ${mlGlaeser}ml)")
+				})
+				leergutGesamt += gesamt
+			}
+		}
+
+		val leergutText = if (leergutLines.isEmpty()) {
+			"Kein Leergut."
+		} else {
+			buildString {
+				leergutLines.forEach { appendLine(it) }
+				append("─────────────────")
+				appendLine()
+				append("Gesamt Leergut: $leergutGesamt Flaschen")
+			}
+		}
+		findViewById<TextView>(R.id.reportLeergutText).text = leergutText
 
 		// --- Softgetränke nach Artikelname ---
 		val softRecords = records.filter { it.category == CategoryType.SOFTGETRAENKE.storageValue }
@@ -61,11 +97,15 @@ class DailyReportActivity : AppCompatActivity() {
 			"Keine Softgetränke verkauft."
 		} else {
 			softByName.entries.joinToString("\n") { (name, list) ->
-				val empCount = list.count { it.isEmployee }
-					buildString {
-						append("$name: ${list.size} Stück")
-						if (empCount > 0) append(" (davon $empCount MA)")
-					}
+				val empCount     = list.count { it.isEmployee }
+				val mitDepCnt    = list.count { !it.isEmployee && it.depositCents > 0 }
+				val ohneDepCnt   = list.count { !it.isEmployee && it.depositCents == 0 }
+				buildString {
+					append("$name: ${list.size} Stück")
+					if (mitDepCnt  > 0) append("  m.Pf: $mitDepCnt")
+					if (ohneDepCnt > 0) append("  o.Pf: $ohneDepCnt")
+					if (empCount   > 0) append("  MA: $empCount")
+				}
 			}
 		}
 		findViewById<TextView>(R.id.reportSoftdrinksText).text = softText

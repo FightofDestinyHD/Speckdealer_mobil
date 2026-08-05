@@ -52,11 +52,16 @@
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
+			android:layout_row="0"
+			android:layout_column="0"
 			android:autoSizeMaxTextSize="22sp"
 			android:autoSizeMinTextSize="12sp"
 			android:autoSizeStepGranularity="1sp"
 			android:autoSizeTextType="uniform"
 			android:background="@drawable/menu_tile_background"
+			android:clickable="true"
+			android:focusable="true"
+			android:foreground="?attr/selectableItemBackground"
 			android:gravity="center"
 			android:includeFontPadding="false"
 			android:maxLines="2"
@@ -67,6 +72,8 @@
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
+			android:layout_row="0"
+			android:layout_column="1"
 			android:autoSizeMaxTextSize="22sp"
 			android:autoSizeMinTextSize="12sp"
 			android:autoSizeStepGranularity="1sp"
@@ -83,6 +90,8 @@
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
+			android:layout_row="0"
+			android:layout_column="2"
 			android:autoSizeMaxTextSize="22sp"
 			android:autoSizeMinTextSize="12sp"
 			android:autoSizeStepGranularity="1sp"
@@ -101,6 +110,8 @@
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
+			android:layout_row="0"
+			android:layout_column="3"
 			android:autoSizeMaxTextSize="22sp"
 			android:autoSizeMinTextSize="12sp"
 			android:autoSizeStepGranularity="1sp"
@@ -117,53 +128,8 @@
 			android:layout_width="110dp"
 			android:layout_height="110dp"
 			android:layout_margin="8dp"
-			android:autoSizeMaxTextSize="22sp"
-			android:autoSizeMinTextSize="12sp"
-			android:autoSizeStepGranularity="1sp"
-			android:autoSizeTextType="uniform"
-			android:background="@drawable/menu_tile_background"
-			android:gravity="center"
-			android:includeFontPadding="false"
-			android:maxLines="2"
-			android:padding="10dp"
-			android:text="@string/tile_item_maintenance" />
-
-		<TextView
-			android:layout_width="110dp"
-			android:layout_height="110dp"
-			android:layout_margin="8dp"
-			android:autoSizeMaxTextSize="22sp"
-			android:autoSizeMinTextSize="12sp"
-			android:autoSizeStepGranularity="1sp"
-			android:autoSizeTextType="uniform"
-			android:background="@drawable/menu_tile_background"
-			android:gravity="center"
-			android:includeFontPadding="false"
-			android:maxLines="2"
-			android:padding="10dp"
-			android:text="6" />
-
-		<TextView
-			android:id="@+id/archiveTile"
-			android:layout_width="110dp"
-			android:layout_height="110dp"
-			android:layout_margin="8dp"
-			android:autoSizeMaxTextSize="22sp"
-			android:autoSizeMinTextSize="12sp"
-			android:autoSizeStepGranularity="1sp"
-			android:autoSizeTextType="uniform"
-			android:background="@drawable/menu_tile_background"
-			android:gravity="center"
-			android:includeFontPadding="false"
-			android:maxLines="2"
-			android:padding="10dp"
-			android:text="@string/tile_archive" />
-
-		<TextView
-			android:id="@+id/updateTile"
-			android:layout_width="110dp"
-			android:layout_height="110dp"
-			android:layout_margin="8dp"
+			android:layout_row="1"
+			android:layout_column="0"
 			android:autoSizeMaxTextSize="22sp"
 			android:autoSizeMinTextSize="12sp"
 			android:autoSizeStepGranularity="1sp"
@@ -176,7 +142,8 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/update_tile_symbol" />
-	</GridLayout>
+			android:text="@string/tile_item_maintenance" />
+
+		</GridLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
