@@ -95,12 +95,23 @@
 					android:hint="Artikelname" />
 
 				<EditText
-					android:id="@+id/articlePriceInput"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginTop="6dp"
-					android:hint="Preis (z. B. 3.50)"
-					android:inputType="numberDecimal" />
+						android:id="@+id/articlePriceInput"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:layout_marginTop="6dp"
+						android:hint="Preis (z. B. 3.50)"
+						android:inputType="numberDecimal" />
+
+					<TextView
+						android:id="@+id/weightPriceHint"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:layout_marginTop="6dp"
+						android:background="#FFF9C4"
+						android:padding="8dp"
+						android:text="⚖️ Preis wird beim Verkauf nach Gewicht eingegeben"
+						android:textSize="13sp"
+						android:visibility="gone" />
 
 				<CheckBox
 					android:id="@+id/isWeinCheckbox"
@@ -149,12 +160,7 @@
 							android:hint="Preis Glas 0,2l (z. B. 3.50)"
 							android:inputType="numberDecimal" />
 
-					<CheckBox
-						android:id="@+id/glassDepositOptionalCheckbox"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:text="Pfand bei Glas wählbar" />
-				</LinearLayout>
+					</LinearLayout>
 
 				<CheckBox
 					android:id="@+id/depositApplicableCheckbox"
@@ -162,6 +168,13 @@
 					android:layout_height="wrap_content"
 					android:checked="true"
 					android:text="Pfand automatisch anwenden" />
+
+				<CheckBox
+					android:id="@+id/glassDepositOptionalCheckbox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Pfand bei Glas wählbar"
+					android:visibility="gone" />
 
 				<Button
 					android:id="@+id/selectImageButton"

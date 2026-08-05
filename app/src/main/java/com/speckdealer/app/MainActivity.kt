@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
 		try {
 			val salesTile = findViewById<View?>(R.id.salesTile)
 			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
+			val dailyReportTile = findViewById<View?>(R.id.dailyReportTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
 
 			if (salesTile == null) {
@@ -103,6 +104,16 @@ class MainActivity : AppCompatActivity() {
 					startActivity(Intent(this, ArticleManagementActivity::class.java))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "ArticleManagementActivity öffnen Fehler", e)
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
+			}
+
+			dailyReportTile?.setOnClickListener {
+				try {
+					startActivity(Intent(this, DailyReportActivity::class.java))
+				} catch (e: Exception) {
+					StartupCrashLogger.logEvent(this, "DailyReportActivity öffnen Fehler", e)
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}

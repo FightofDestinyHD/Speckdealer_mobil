@@ -1,7 +1,10 @@
 package com.speckdealer.app
 
 import android.os.Bundle
+import android.text.InputType
 import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -10,6 +13,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
+import com.speckdealer.app.data.DailySalesStorage
+import com.speckdealer.app.data.SaleRecord
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
@@ -22,11 +27,21 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
-data class CartEntry(val displayName: String, val totalCents: Int)
+data class CartEntry(
+    val displayName: String,
+    val totalCents: Int,
+    val articleName: String = "",
+    val category: String = "",
+    val servingType: String = "STANDARD",
+    val priceCents: Int = totalCents,
+    val depositCents: Int = 0,
+    val isEmployee: Boolean = false
+)
 
 class SalesActivity : AppCompatActivity() {
 
 	private lateinit var repository: ArticleRepository
+	private lateinit var dailySalesStorage: DailySalesStorage
 	private lateinit var tabLayout: TabLayout
 	private lateinit var cartTotalText: TextView
 	private lateinit var adapter: SalesArticleAdapter
@@ -42,6 +57,7 @@ class SalesActivity : AppCompatActivity() {
 
 		try {
 			repository = AppGraph.repository(this)
+			dailySalesStorage = DailySalesStorage(this)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			cartTotalText = findViewById(R.id.cartTotalText)
 			setupArticleRecyclerView()
@@ -83,17 +99,93 @@ class SalesActivity : AppCompatActivity() {
 		}
 		findViewById<Button>(R.id.cartCheckoutButton).setOnClickListener {
 			if (cartItems.isEmpty()) return@setOnClickListener
-			val total = currencyFormatter.format(cartItems.sumOf { it.totalCents } / 100.0)
-			AlertDialog.Builder(this)
-				.setTitle("Kassieren")
-				.setMessage("Gesamtbetrag: $total\n\nKasse abschließen und Warenkorb leeren?")
-				.setPositiveButton("Kassieren") { _, _ ->
-					cartItems.clear()
-					updateCart()
-				}
-				.setNegativeButton("Abbrechen", null)
-				.show()
+			showPriceAdjustmentDialog()
 		}
+	}
+
+	/** Schritt 1: Gesamtpreis anzeigen und ggf. anpassen */
+	private fun showPriceAdjustmentDialog() {
+		val originalTotal = cartItems.sumOf { it.totalCents }
+		val input = EditText(this).apply {
+			setText(String.format(Locale.GERMANY, "%.2f", originalTotal / 100.0))
+			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+			selectAll()
+		}
+		val container = LinearLayout(this).apply {
+			orientation = LinearLayout.VERTICAL
+			val pad = (16 * resources.displayMetrics.density).toInt()
+			setPadding(pad, pad, pad, 0)
+			addView(input)
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Gesamtbetrag anpassen")
+			.setMessage("Originalpreis: ${currencyFormatter.format(originalTotal / 100.0)}\nHier kannst du den Betrag noch anpassen (z. B. Rabatt):")
+			.setView(container)
+			.setPositiveButton("Weiter") { _, _ ->
+				val adjusted = input.text.toString().trim().replace(',', '.')
+				val adjustedCents = ((adjusted.toDoubleOrNull() ?: 0.0) * 100).toInt()
+				if (adjustedCents < 0) return@setPositiveButton
+				showPaymentDialog(adjustedCents)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	/** Schritt 2: Erhaltenen Betrag eingeben und Rückgeld berechnen */
+	private fun showPaymentDialog(finalTotalCents: Int) {
+		val input = EditText(this).apply {
+			hint = "Erhaltener Betrag (z. B. 20.00)"
+			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+		}
+		val container = LinearLayout(this).apply {
+			orientation = LinearLayout.VERTICAL
+			val pad = (16 * resources.displayMetrics.density).toInt()
+			setPadding(pad, pad, pad, 0)
+			addView(input)
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Kassieren – ${currencyFormatter.format(finalTotalCents / 100.0)}")
+			.setMessage("Wie viel hat der Kunde gegeben?")
+			.setView(container)
+			.setPositiveButton("Kassieren") { _, _ ->
+				val givenStr = input.text.toString().trim().replace(',', '.')
+				val givenCents = ((givenStr.toDoubleOrNull() ?: 0.0) * 100).toInt()
+				val changeCents = givenCents - finalTotalCents
+				// Persistieren mit finalem Preis (anteilig skalieren wenn angepasst)
+				val originalTotal = cartItems.sumOf { it.totalCents }.coerceAtLeast(1)
+				val records = cartItems.map { entry ->
+					val adjustedPrice = (entry.priceCents.toLong() * finalTotalCents / originalTotal).toInt()
+					SaleRecord(
+						articleName  = entry.articleName.ifBlank { entry.displayName },
+						category     = entry.category,
+						servingType  = entry.servingType,
+						priceCents   = adjustedPrice,
+						depositCents = entry.depositCents,
+						isEmployee   = entry.isEmployee
+					)
+				}
+				lifecycleScope.launch(Dispatchers.IO) { dailySalesStorage.appendRecords(records) }
+				cartItems.clear()
+				updateCart()
+				// Rückgeld anzeigen (landet NICHT im Tagesabschluss)
+				showChangeDialog(changeCents)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	/** Schritt 3: Rückgeld anzeigen */
+	private fun showChangeDialog(changeCents: Int) {
+		val changeText = if (changeCents >= 0) {
+			"Rückgeld: ${currencyFormatter.format(changeCents / 100.0)}"
+		} else {
+			"⚠️ Betrag zu gering um ${currencyFormatter.format(-changeCents / 100.0)}"
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Kassiert ✓")
+			.setMessage(changeText)
+			.setPositiveButton("OK", null)
+			.show()
 	}
 
 	private fun addToCart(entry: CartEntry) {
@@ -157,9 +249,79 @@ class SalesActivity : AppCompatActivity() {
 			showWineServingDialog(article)
 			return
 		}
+		if (selectedCategory == CategoryType.SOFTGETRAENKE && article.depositApplicable) {
+			showSoftdrinkDepositDialog(article)
+			return
+		}
+		if (selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE) {
+			showWeightPriceDialog(article)
+			return
+		}
 		val depositTypeToken = detectNonWineDepositType(article)
 		val applyDeposit = article.depositApplicable && depositTypeToken != null
-		finalizeSelection(article, article.name, applyDeposit, depositTypeToken, article.priceCents)
+		finalizeSelection(article, article.name, applyDeposit, depositTypeToken, article.priceCents, isEmployee = false)
+	}
+
+	private fun showWeightPriceDialog(article: ArticleEntity) {
+		val input = EditText(this).apply {
+			hint = "Preis eingeben (z. B. 4.80)"
+			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+		}
+		val container = LinearLayout(this).apply {
+			orientation = LinearLayout.VERTICAL
+			val pad = (16 * resources.displayMetrics.density).toInt()
+			setPadding(pad, pad, pad, 0)
+			addView(input)
+		}
+		AlertDialog.Builder(this)
+			.setTitle("${article.name} – Preis eingeben")
+			.setView(container)
+			.setPositiveButton("Hinzufügen") { _, _ ->
+				val priceStr = input.text.toString().trim().replace(',', '.')
+				val priceCents = ((priceStr.toDoubleOrNull() ?: 0.0) * 100).toInt()
+				if (priceCents <= 0) {
+					AlertDialog.Builder(this)
+						.setMessage("Bitte einen gültigen Preis eingeben.")
+						.setPositiveButton("OK", null).show()
+					return@setPositiveButton
+				}
+				finalizeSelection(article, article.name, false, null, priceCents, isEmployee = false)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun showSoftdrinkDepositDialog(article: ArticleEntity) {
+		if (article.glassDepositOptional) {
+			// Nutzer darf wählen ob Glas-Pfand berechnet wird
+			AlertDialog.Builder(this)
+				.setTitle(article.name)
+				.setItems(arrayOf("Mit Glaspfand", "Ohne Glaspfand", "Mitarbeiter")) { _, which ->
+					when (which) {
+						2 -> finalizeSelection(
+							article = article,
+							displayName = "${article.name} (Mitarbeiter)",
+							applyDeposit = false,
+							depositTypeToken = null,
+							customPriceCents = 0,
+							isEmployee = true
+						)
+						else -> finalizeSelection(
+							article = article,
+							displayName = article.name,
+							applyDeposit = which == 0,
+							depositTypeToken = "glas",
+							customPriceCents = article.priceCents,
+							isEmployee = false
+						)
+					}
+				}
+				.setNegativeButton("Abbrechen", null)
+				.show()
+		} else {
+			// Pfand immer automatisch
+			finalizeSelection(article, article.name, true, "glas", article.priceCents, isEmployee = false)
+		}
 	}
 
 	private fun showWineServingDialog(article: ArticleEntity) {
@@ -181,7 +343,8 @@ class SalesActivity : AppCompatActivity() {
 				if (selected.requiresGlassDepositChoice) {
 					showGlassDepositChoiceDialog(article, selected, priceCents)
 				} else {
-					finalizeSelection(article, "${article.name} - ${selected.label}", false, null, priceCents)
+					finalizeSelection(article, "${article.name} - ${selected.label}", false, null, priceCents,
+						isEmployee = false, servingTypeStr = selected.name)
 				}
 			}
 			.setNegativeButton("Abbrechen", null)
@@ -191,15 +354,30 @@ class SalesActivity : AppCompatActivity() {
 	private fun showGlassDepositChoiceDialog(article: ArticleEntity, servingType: WineServingType, priceCents: Int) {
 		AlertDialog.Builder(this)
 			.setTitle("Pfand für ${servingType.label}")
-			.setItems(arrayOf("Mit Pfand", "Ohne Pfand")) { _, which ->
-				val withDeposit = which == 0
-				finalizeSelection(
-					article = article,
-					displayName = "${article.name} - ${servingType.label}",
-					applyDeposit = withDeposit,
-					depositTypeToken = "glas",
-					customPriceCents = priceCents
-				)
+			.setItems(arrayOf("Mit Pfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
+				when (which) {
+					2 -> finalizeSelection(
+						article = article,
+						displayName = "${article.name} - ${servingType.label} (Mitarbeiter)",
+						applyDeposit = false,
+						depositTypeToken = null,
+						customPriceCents = 0,
+						isEmployee = true,
+						servingTypeStr = servingType.name
+					)
+					else -> {
+						val withDeposit = which == 0
+						finalizeSelection(
+							article = article,
+							displayName = "${article.name} - ${servingType.label}",
+							applyDeposit = withDeposit,
+							depositTypeToken = "glas",
+							customPriceCents = priceCents,
+							isEmployee = false,
+							servingTypeStr = servingType.name
+						)
+					}
+				}
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
@@ -220,25 +398,36 @@ class SalesActivity : AppCompatActivity() {
 		displayName: String,
 		applyDeposit: Boolean,
 		depositTypeToken: String?,
-		customPriceCents: Int = article.priceCents
+		customPriceCents: Int = article.priceCents,
+		isEmployee: Boolean = false,
+		servingTypeStr: String = "STANDARD"
 	) {
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
-				val depositArticle = if (applyDeposit && !depositTypeToken.isNullOrBlank()) {
+				val depositArticle = if (!isEmployee && applyDeposit && !depositTypeToken.isNullOrBlank()) {
 					repository.getDepositArticleForType(depositTypeToken)
 				} else null
 
 				val depositCents = depositArticle?.priceCents ?: 0
-				val totalCents = customPriceCents + depositCents
+				val drinkPrice   = if (isEmployee) 0 else customPriceCents
+				val totalCents   = drinkPrice + depositCents
 
-				val entryName = if (depositArticle != null) {
-					"$displayName + ${depositArticle.name}"
-				} else {
-					displayName
+				val entryName = buildString {
+					append(displayName)
+					if (depositArticle != null) append(" + ${depositArticle.name}")
 				}
 
 				withContext(Dispatchers.Main) {
-					addToCart(CartEntry(entryName, totalCents))
+					addToCart(CartEntry(
+						displayName  = entryName,
+						totalCents   = totalCents,
+						articleName  = article.name,
+						category     = article.category,
+						servingType  = servingTypeStr,
+						priceCents   = drinkPrice,
+						depositCents = depositCents,
+						isEmployee   = isEmployee
+					))
 				}
 			} catch (e: Exception) {
 				e.printStackTrace()

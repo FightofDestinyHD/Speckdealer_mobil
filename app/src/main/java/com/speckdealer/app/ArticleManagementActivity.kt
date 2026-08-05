@@ -52,6 +52,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var selectedImageLabel: TextView
 	private lateinit var glass01PriceInput: EditText
 	private lateinit var glass02PriceInput: EditText
+	private lateinit var weightPriceHint: TextView
 
 	private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 		if (uri != null) {
@@ -99,6 +100,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 		selectedImageLabel = findViewById(R.id.selectedImageLabel)
 		glass01PriceInput = findViewById(R.id.glass01PriceInput)
 		glass02PriceInput = findViewById(R.id.glass02PriceInput)
+		weightPriceHint = findViewById(R.id.weightPriceHint)
 	}
 
 	private fun setupRecyclerView() {
@@ -155,11 +157,17 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private fun configureFormForCategory(categoryType: CategoryType) {
 		val isPfandCategory = categoryType == CategoryType.PFAND
 		val isWeinCategory = categoryType == CategoryType.WEIN
+		val isSoftCategory = categoryType == CategoryType.SOFTGETRAENKE
+		val isWeightCategory = categoryType == CategoryType.SPECK || categoryType == CategoryType.KAESE
 
 		selectImageButton.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
 		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
+		glassDepositOptionalCheckbox.visibility = if (isSoftCategory) View.VISIBLE else View.GONE
+		// Speck & Käse: Preis wird beim Verkauf eingegeben
+		articlePriceInput.visibility = if (isWeightCategory) View.GONE else View.VISIBLE
+		weightPriceHint.visibility = if (isWeightCategory) View.VISIBLE else View.GONE
 	}
 
 	private fun saveArticle() {
@@ -169,9 +177,10 @@ class ArticleManagementActivity : AppCompatActivity() {
 			return
 		}
 
+		val isWeightCategory = selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE
 		val price = articlePriceInput.text.toString().trim().replace(',', '.')
-		val priceCents = ((price.toDoubleOrNull() ?: -1.0) * 100).toInt()
-		if (priceCents < 0) {
+		val priceCents = if (isWeightCategory) 0 else ((price.toDoubleOrNull() ?: -1.0) * 100).toInt()
+		if (!isWeightCategory && priceCents < 0) {
 			showMessage("Bitte gültigen Preis eingeben")
 			return
 		}
@@ -193,6 +202,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 			v
 		} else 0
 
+		val isSoft = selectedCategory == CategoryType.SOFTGETRAENKE
 		val idToEdit = editingArticleId
 		val article = ArticleEntity(
 			name,
@@ -204,7 +214,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 			hasGlass01Checkbox.isChecked,
 			hasGlass02Checkbox.isChecked,
 			!isPfand && depositApplicableCheckbox.isChecked,
-			selectedCategory == CategoryType.WEIN && glassDepositOptionalCheckbox.isChecked,
+			(isWeinArtikel || isSoft) && glassDepositOptionalCheckbox.isChecked,
 			glass01Cents,
 			glass02Cents
 		)

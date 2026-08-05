@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="@drawable/app_background"
+	android:orientation="vertical"
+	android:padding="16dp">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="📋 Tagesabschluss"
+		android:textSize="20sp"
+		android:textStyle="bold"
+		android:paddingBottom="12dp" />
+
+	<ScrollView
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
+
+			<!-- Finanzen -->
+			<TextView
+				android:id="@+id/reportSectionFinance"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:text="💶 Finanzen"
+				android:paddingTop="8dp"
+				android:paddingBottom="4dp" />
+
+			<TextView
+				android:id="@+id/reportFinanceText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="14sp"
+				android:background="#CCFFFFFF"
+				android:padding="8dp" />
+
+			<!-- Gläser Wein -->
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:text="🍷 Weingläser"
+				android:paddingTop="12dp"
+				android:paddingBottom="4dp" />
+
+			<TextView
+				android:id="@+id/reportGlassesText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="14sp"
+				android:background="#CCFFFFFF"
+				android:padding="8dp" />
+
+			<!-- Softgetränke -->
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:text="🥤 Softgetränke"
+				android:paddingTop="12dp"
+				android:paddingBottom="4dp" />
+
+			<TextView
+				android:id="@+id/reportSoftdrinksText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="14sp"
+				android:background="#CCFFFFFF"
+				android:padding="8dp" />
+
+			<!-- Mitarbeiter -->
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="16sp"
+				android:textStyle="bold"
+				android:text="👤 Mitarbeiterverkäufe"
+				android:paddingTop="12dp"
+				android:paddingBottom="4dp" />
+
+			<TextView
+				android:id="@+id/reportEmployeeText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="14sp"
+				android:background="#CCFFFFFF"
+				android:padding="8dp" />
+
+		</LinearLayout>
+	</ScrollView>
+
+	<!-- Buttons -->
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:paddingTop="12dp">
+
+		<Button
+			android:id="@+id/reportResetButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginEnd="8dp"
+			android:backgroundTint="#B71C1C"
+			android:text="Tag abschließen &amp; zurücksetzen"
+			android:textColor="#FFFFFF" />
+
+		<Button
+			android:id="@+id/reportCloseButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:backgroundTint="#1B5E20"
+			android:text="Schließen"
+			android:textColor="#FFFFFF" />
+
+	</LinearLayout>
+
+</LinearLayout>
