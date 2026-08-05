@@ -1,18 +1,15 @@
 package com.speckdealer.app
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
@@ -297,57 +294,60 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun startDownloadViaDownloadManager(apkUrl: String) {
-		val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-		val fileName = "speckdealer-update.apk"
+		// APK in app-eigenes Cache-Verzeichnis herunterladen (kein FileProvider-Problem)
+		val apkFile = java.io.File(cacheDir, "speckdealer-update.apk")
 
-		// Alte Datei im Download-Ordner löschen falls vorhanden
-		val request = DownloadManager.Request(Uri.parse(apkUrl)).apply {
-			setTitle("Speckdealer Update")
-			setDescription("Neue Version wird heruntergeladen…")
-			setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-			setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-			setMimeType("application/vnd.android.package-archive")
-			addRequestHeader("User-Agent", "SpeckdealerApp")
-		}
+		thread {
+			try {
+				val url = java.net.URL(apkUrl)
+				val conn = url.openConnection() as HttpURLConnection
+				conn.setRequestProperty("User-Agent", "SpeckdealerApp")
+				conn.connectTimeout = 15000
+				conn.readTimeout = 60000
+				conn.connect()
 
-		val downloadId = dm.enqueue(request)
-
-		// BroadcastReceiver wartet auf Abschluss
-		val receiver = object : BroadcastReceiver() {
-			override fun onReceive(context: Context, intent: Intent) {
-				val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-				if (id != downloadId) return
-				unregisterReceiver(this)
-
-				val query = DownloadManager.Query().setFilterById(downloadId)
-				val cursor = dm.query(query)
-				if (cursor != null && cursor.moveToFirst()) {
-					val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-					val uriIdx = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-					val status = if (statusIdx >= 0) cursor.getInt(statusIdx) else -1
-					val localUri = if (uriIdx >= 0) cursor.getString(uriIdx) else null
-					cursor.close()
-
-					if (status == DownloadManager.STATUS_SUCCESSFUL && localUri != null) {
-						val installIntent = Intent(Intent.ACTION_VIEW).apply {
-							setDataAndType(Uri.parse(localUri), "application/vnd.android.package-archive")
-							addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-							addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-						}
-						startActivity(installIntent)
-					} else {
-						Snackbar.make(
-							findViewById(android.R.id.content),
-							getString(R.string.update_download_failed),
-							Snackbar.LENGTH_LONG
-						).show()
+				conn.inputStream.use { input ->
+					apkFile.outputStream().use { output ->
+						input.copyTo(output)
 					}
+				}
+				conn.disconnect()
+
+				runOnUiThread { installApkFile(apkFile) }
+			} catch (e: Exception) {
+				e.printStackTrace()
+				runOnUiThread {
+					Snackbar.make(
+						findViewById(android.R.id.content),
+						getString(R.string.update_download_failed),
+						Snackbar.LENGTH_LONG
+					).show()
 				}
 			}
 		}
+	}
 
-		@Suppress("UnspecifiedRegisterReceiverFlag")
-		registerReceiver(receiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+	private fun installApkFile(apkFile: java.io.File) {
+		try {
+			val apkUri = FileProvider.getUriForFile(
+				this,
+				"${packageName}.fileprovider",
+				apkFile
+			)
+			val installIntent = Intent(Intent.ACTION_VIEW).apply {
+				setDataAndType(apkUri, "application/vnd.android.package-archive")
+				addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+				addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+			}
+			startActivity(installIntent)
+		} catch (e: Exception) {
+			e.printStackTrace()
+			Snackbar.make(
+				findViewById(android.R.id.content),
+				getString(R.string.update_download_failed),
+				Snackbar.LENGTH_LONG
+			).show()
+		}
 	}
 
 	/** Fragt die GitHub API ab und gibt die browser_download_url des ersten .apk-Assets zurück */
