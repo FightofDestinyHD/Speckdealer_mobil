@@ -8,4 +8,4 @@
 - Nutzer erwartet erst nach verifizierter Prüfung eine Aussage wie 'Fix ist behoben' und reagiert negativ auf unbestätigte Erfolgsmeldungen.
 
 ## Repository Access
-- GitHub Token wird zur Laufzeit per Umgebungsvariable GITHUB_TOKEN übergeben.
+- GitHub Token wird zur Laufzeit per Umgebungsvariable GH_RELEASE_TOKEN übergeben.

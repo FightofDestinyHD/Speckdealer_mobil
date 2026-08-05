@@ -398,14 +398,23 @@ class SalesActivity : AppCompatActivity() {
 		article: ArticleEntity, sizeName: String, priceCents: Int,
 		glaesser01: Int, glaesser02: Int, sonderwunsch: String
 	) {
+		// Optionen: Teller + Glas, nur Teller, nur Glas, kein Pfand, Mitarbeiter
+		val options = arrayOf(
+			"Mit Tellerpfand + Glaspfand",
+			"Mit Tellerpfand",
+			"Mit Glaspfand",
+			"Ohne Pfand",
+			"Mitarbeiter"
+		)
 		AlertDialog.Builder(this)
-			.setTitle("${article.name} – Pfand (Teller)")
-			.setItems(arrayOf("Mit Tellerpfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
-				val isEmployee  = which == 2
-				val withDeposit = which == 0
-				val finalPrice  = if (isEmployee) 0 else priceCents
-				placeAngebotOrder(article, sizeName, finalPrice, withDeposit,
-					glaesser01, glaesser02, sonderwunsch, isEmployee)
+			.setTitle("${article.name} – Pfand")
+			.setItems(options) { _, which ->
+				val isEmployee      = which == 4
+				val withTeller      = !isEmployee && (which == 0 || which == 1)
+				val withGlas        = !isEmployee && (which == 0 || which == 2)
+				val finalPrice      = if (isEmployee) 0 else priceCents
+				placeAngebotOrder(article, sizeName, finalPrice,
+					withTeller, withGlas, glaesser01, glaesser02, sonderwunsch, isEmployee)
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
@@ -413,13 +422,22 @@ class SalesActivity : AppCompatActivity() {
 
 	private fun placeAngebotOrder(
 		article: ArticleEntity, sizeName: String, priceCents: Int,
-		withDeposit: Boolean, glaesser01: Int, glaesser02: Int,
+		withTellerDeposit: Boolean, withGlasDeposit: Boolean,
+		glaesser01: Int, glaesser02: Int,
 		sonderwunsch: String, isEmployee: Boolean
 	) {
 		lifecycleScope.launch(Dispatchers.IO) {
-			val actualDepositCents = if (withDeposit && !isEmployee) {
+			val tellerDepositCents = if (withTellerDeposit && !isEmployee) {
 				repository.getDepositArticleForType("teller")?.priceCents ?: 0
 			} else 0
+
+			val glasDepositCents = if (withGlasDeposit && !isEmployee) {
+				val glasArtikel = repository.getDepositArticleForType("glas")
+				val perGlas = glasArtikel?.priceCents ?: 0
+				perGlas * (glaesser01 + glaesser02)
+			} else 0
+
+			val actualDepositCents = tellerDepositCents + glasDepositCents
 
 			val order = OrderRecord(
 				id           = UUID.randomUUID().toString(),
@@ -458,8 +476,14 @@ class SalesActivity : AppCompatActivity() {
 				val total     = priceCents + actualDepositCents
 				val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
 				val empLabel  = if (isEmployee) " – Mitarbeiter" else ""
+				val pfandLabel = when {
+					withTellerDeposit && withGlasDeposit -> " +Teller+Glaspfand"
+					withTellerDeposit -> " +Tellerpfand"
+					withGlasDeposit   -> " +Glaspfand"
+					else              -> ""
+				}
 				addToCart(CartEntry(
-					displayName  = "${article.name}$sizeLabel$empLabel",
+					displayName  = "${article.name}$sizeLabel$empLabel$pfandLabel",
 					totalCents   = total,
 					articleName  = article.name,
 					category     = CategoryType.ANGEBOT.storageValue,
