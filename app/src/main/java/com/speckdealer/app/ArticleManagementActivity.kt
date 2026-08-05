@@ -2,6 +2,7 @@ package com.speckdealer.app
 
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
@@ -21,7 +22,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
 import java.util.Locale
+import java.util.UUID
 
 class ArticleManagementActivity : AppCompatActivity() {
 
@@ -47,8 +52,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 
 	private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 		if (uri != null) {
-			selectedImageUri = uri.toString()
-			selectedImageLabel.text = uri.lastPathSegment ?: uri.toString()
+			lifecycleScope.launch {
+				val internalPath = withContext(Dispatchers.IO) { copyImageToInternalStorage(uri) }
+				if (internalPath != null) {
+					selectedImageUri = internalPath
+					selectedImageLabel.text = File(internalPath).name
+				} else {
+					showMessage("Bild konnte nicht gespeichert werden")
+				}
+			}
 		}
 	}
 
@@ -224,5 +236,19 @@ class ArticleManagementActivity : AppCompatActivity() {
 
 	private fun showMessage(message: String) {
 		Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_SHORT).show()
+	}
+
+	private fun copyImageToInternalStorage(uri: Uri): String? {
+		return try {
+			val imagesDir = File(filesDir, "images").apply { mkdirs() }
+			val destFile = File(imagesDir, "${UUID.randomUUID()}.jpg")
+			contentResolver.openInputStream(uri)?.use { input ->
+				destFile.outputStream().use { output -> input.copyTo(output) }
+			} ?: throw IOException("InputStream null für URI: $uri")
+			destFile.absolutePath
+		} catch (e: Exception) {
+			Log.e("ArticleManagement", "Fehler beim Kopieren des Bildes: $uri", e)
+			null
+		}
 	}
 }

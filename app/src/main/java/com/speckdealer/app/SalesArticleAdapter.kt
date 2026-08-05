@@ -1,6 +1,7 @@
 package com.speckdealer.app
 
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,6 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.speckdealer.app.data.ArticleEntity
+import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -47,7 +49,22 @@ class SalesArticleAdapter(
 			metaText.text = buildMetaText(item)
 
 			if (!item.imageUri.isNullOrBlank()) {
-				imageView.setImageURI(Uri.parse(item.imageUri))
+				try {
+					val uri = if (item.imageUri.startsWith("/")) {
+						val file = File(item.imageUri)
+						if (file.exists()) Uri.fromFile(file) else null
+					} else {
+						Uri.parse(item.imageUri)
+					}
+					if (uri != null) {
+						imageView.setImageURI(uri)
+					} else {
+						imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+					}
+				} catch (e: Exception) {
+					Log.w("SalesArticleAdapter", "Bild konnte nicht geladen werden: ${item.imageUri}", e)
+					imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+				}
 			} else {
 				imageView.setImageResource(android.R.drawable.ic_menu_gallery)
 			}
