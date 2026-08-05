@@ -25,21 +25,27 @@ import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
-	private lateinit var appUpdateManager: AppUpdateManager
+	private var appUpdateManager: AppUpdateManager? = null
 	private var cachedUpdateInfo: AppUpdateInfo? = null
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
+		StartupCrashLogger.install(this)
+		StartupCrashLogger.logEvent(this, "MainActivity.onCreate start")
 		try {
 			setContentView(R.layout.activity_main)
+			StartupCrashLogger.logEvent(this, "setContentView erfolgreich")
 		} catch (e: Exception) {
+			StartupCrashLogger.logEvent(this, "setContentView Fehler", e)
 			e.printStackTrace()
 			return
 		}
 
 		try {
 			appUpdateManager = AppUpdateManagerFactory.create(this)
+			StartupCrashLogger.logEvent(this, "AppUpdateManager erstellt")
 		} catch (e: Exception) {
+			StartupCrashLogger.logEvent(this, "AppUpdateManager Fehler", e)
 			e.printStackTrace()
 		}
 
@@ -47,39 +53,49 @@ class MainActivity : AppCompatActivity() {
 			setupMenuTiles()
 			showChangelogIfUpdated()
 			startIntroTransition()
+			StartupCrashLogger.logEvent(this, "MainActivity UI init fertig")
 		} catch (e: Exception) {
+			StartupCrashLogger.logEvent(this, "MainActivity UI init Fehler", e)
 			e.printStackTrace()
 		}
 	}
 
 	override fun onResume() {
 		super.onResume()
-		if (isInstalledFromPlayStore()) {
-			checkForImmediateUpdate()
+		StartupCrashLogger.logEvent(this, "MainActivity.onResume")
+		try {
+			if (isInstalledFromPlayStore()) {
+				checkForImmediateUpdate()
+			}
+		} catch (e: Exception) {
+			StartupCrashLogger.logEvent(this, "onResume Fehler", e)
+			e.printStackTrace()
 		}
 	}
 
 	private fun setupMenuTiles() {
 		try {
-			findViewById<View>(R.id.salesTile).setOnClickListener {
+			findViewById<View?>(R.id.salesTile)?.setOnClickListener {
 				try {
 					startActivity(Intent(this, SalesActivity::class.java))
 				} catch (e: Exception) {
+					StartupCrashLogger.logEvent(this, "SalesActivity öffnen Fehler", e)
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}
 			}
 
-			findViewById<View>(R.id.articleManagementTile).setOnClickListener {
+			findViewById<View?>(R.id.articleManagementTile)?.setOnClickListener {
 				try {
 					startActivity(Intent(this, ArticleManagementActivity::class.java))
 				} catch (e: Exception) {
+					StartupCrashLogger.logEvent(this, "ArticleManagementActivity öffnen Fehler", e)
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}
 			}
 
-			findViewById<View>(R.id.updateTile).setOnClickListener {
+			findViewById<View?>(R.id.updateTile)?.setOnClickListener {
 				try {
 					if (isInstalledFromPlayStore()) {
 						startImmediateUpdateIfAvailable()
@@ -87,11 +103,14 @@ class MainActivity : AppCompatActivity() {
 						downloadAndInstallLatestRelease()
 					}
 				} catch (e: Exception) {
+					StartupCrashLogger.logEvent(this, "Update-Start Fehler", e)
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Update: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}
 			}
+			StartupCrashLogger.logEvent(this, "setupMenuTiles fertig")
 		} catch (e: Exception) {
+			StartupCrashLogger.logEvent(this, "setupMenuTiles Fehler", e)
 			e.printStackTrace()
 		}
 	}
@@ -153,7 +172,8 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun checkForImmediateUpdate() {
-		appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+		val manager = appUpdateManager ?: return
+		manager.appUpdateInfo.addOnSuccessListener { info ->
 			cachedUpdateInfo = info
 			if (isImmediateUpdateAvailable(info)) {
 				Snackbar.make(
@@ -172,7 +192,13 @@ class MainActivity : AppCompatActivity() {
 			return
 		}
 
-		appUpdateManager.appUpdateInfo.addOnSuccessListener { freshInfo ->
+		val manager = appUpdateManager
+		if (manager == null) {
+			downloadAndInstallLatestRelease()
+			return
+		}
+
+		manager.appUpdateInfo.addOnSuccessListener { freshInfo ->
 			cachedUpdateInfo = freshInfo
 			if (isImmediateUpdateAvailable(freshInfo)) {
 				startImmediateUpdate(freshInfo)
@@ -186,7 +212,8 @@ class MainActivity : AppCompatActivity() {
 
 	private fun startImmediateUpdate(info: AppUpdateInfo) {
 		try {
-			appUpdateManager.startUpdateFlowForResult(
+			val manager = appUpdateManager ?: return
+			manager.startUpdateFlowForResult(
 				info,
 				AppUpdateType.IMMEDIATE,
 				this,
