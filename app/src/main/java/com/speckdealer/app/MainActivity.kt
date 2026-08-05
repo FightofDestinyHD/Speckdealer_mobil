@@ -25,6 +25,16 @@ class MainActivity : AppCompatActivity() {
 
 	private var appUpdateManager: AppUpdateManager? = null
 	private var cachedUpdateInfo: AppUpdateInfo? = null
+	private var pendingApkFile: java.io.File? = null
+
+	companion object {
+		private const val UPDATE_REQUEST_CODE = 1001
+		private const val REQUEST_INSTALL_PERMISSION = 1002
+		private const val PREFERENCES_NAME = "speckdealer_prefs"
+		private const val KEY_LAST_VERSION_CODE = "last_version_code"
+		private const val KEY_LAST_VERSION_NAME = "last_version_name"
+		private const val GITHUB_API_LATEST = "https://api.github.com/repos/FightofDestinyHD/Speckdealer_mobil/releases/latest"
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -338,6 +348,29 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun installApkFile(apkFile: java.io.File) {
+		// Ab Android 8: Berechtigung für unbekannte Quellen prüfen
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			if (!packageManager.canRequestPackageInstalls()) {
+				pendingApkFile = apkFile
+				AlertDialog.Builder(this)
+					.setTitle("Installation erlauben")
+					.setMessage("Bitte erlaube die Installation aus unbekannten Quellen für diese App, dann wird das Update automatisch installiert.")
+					.setPositiveButton("Einstellungen öffnen") { _, _ ->
+						val intent = Intent(
+							Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+							Uri.parse("package:$packageName")
+						)
+						startActivityForResult(intent, REQUEST_INSTALL_PERMISSION)
+					}
+					.setNegativeButton("Abbrechen", null)
+					.show()
+				return
+			}
+		}
+		doInstallApk(apkFile)
+	}
+
+	private fun doInstallApk(apkFile: java.io.File) {
 		try {
 			val apkUri = FileProvider.getUriForFile(
 				this,
@@ -357,6 +390,18 @@ class MainActivity : AppCompatActivity() {
 				getString(R.string.update_download_failed),
 				Snackbar.LENGTH_LONG
 			).show()
+		}
+	}
+
+	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		super.onActivityResult(requestCode, resultCode, data)
+		if (requestCode == REQUEST_INSTALL_PERMISSION) {
+			val apk = pendingApkFile
+			if (apk != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+				&& packageManager.canRequestPackageInstalls()) {
+				pendingApkFile = null
+				doInstallApk(apk)
+			}
 		}
 	}
 
@@ -401,12 +446,5 @@ class MainActivity : AppCompatActivity() {
 		}
 		return installer == "com.android.vending"
 	}
-
-	companion object {
-		private const val UPDATE_REQUEST_CODE = 1001
-		private const val PREFERENCES_NAME = "speckdealer_prefs"
-		private const val KEY_LAST_VERSION_CODE = "last_version_code"
-		private const val KEY_LAST_VERSION_NAME = "last_version_name"
-		private const val GITHUB_API_LATEST = "https://api.github.com/repos/FightofDestinyHD/Speckdealer_mobil/releases/latest"
-	}
 }
+
