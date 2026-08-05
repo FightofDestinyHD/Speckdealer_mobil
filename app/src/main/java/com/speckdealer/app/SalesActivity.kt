@@ -292,6 +292,8 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	private fun showSoftdrinkDepositDialog(article: ArticleEntity) {
+		// Pfand-Typ aus Artikelkonfiguration: glassDepositOptional=true → Glaspfand, sonst Flaschenpfand
+		val depositToken = if (article.glassDepositOptional) "glas" else "flasche"
 		AlertDialog.Builder(this)
 			.setTitle(article.name)
 			.setItems(arrayOf("Mit Pfand", "Ohne Pfand", "Mitarbeiter")) { _, which ->
@@ -308,7 +310,7 @@ class SalesActivity : AppCompatActivity() {
 						article = article,
 						displayName = article.name,
 						applyDeposit = which == 0,
-						depositTypeToken = "glas",
+						depositTypeToken = depositToken,
 						customPriceCents = article.priceCents,
 						isEmployee = false
 					)

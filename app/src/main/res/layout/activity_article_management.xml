@@ -167,13 +167,13 @@
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
 					android:checked="true"
-					android:text="Pfand automatisch anwenden" />
+					android:text="Pfand anwenden" />
 
 				<CheckBox
 					android:id="@+id/glassDepositOptionalCheckbox"
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:text="Pfand bei Glas wählbar"
+					android:text="Glaspfand (statt Flaschenpfand)"
 					android:visibility="gone" />
 
 				<Button

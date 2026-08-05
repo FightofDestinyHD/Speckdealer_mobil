@@ -128,6 +128,12 @@ class ArticleManagementActivity : AppCompatActivity() {
 			wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
 		}
 
+		depositApplicableCheckbox.setOnCheckedChangeListener { _, isChecked ->
+			glassDepositOptionalCheckbox.visibility =
+				if (selectedCategory == CategoryType.SOFTGETRAENKE && isChecked) View.VISIBLE else View.GONE
+			if (!isChecked) glassDepositOptionalCheckbox.isChecked = false
+		}
+
 		selectImageButton.setOnClickListener { imagePicker.launch("image/*") }
 		findViewById<Button>(R.id.saveArticleButton).setOnClickListener { saveArticle() }
 		findViewById<Button>(R.id.clearArticleButton).setOnClickListener { clearForm() }
@@ -164,7 +170,9 @@ class ArticleManagementActivity : AppCompatActivity() {
 		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
 		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
 		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
-		glassDepositOptionalCheckbox.visibility = if (isSoftCategory) View.VISIBLE else View.GONE
+		// Softgetränke: Pfand anwenden + Glaspfand-Option sichtbar
+		depositApplicableCheckbox.visibility = if (isSoftCategory) View.VISIBLE else View.GONE
+		glassDepositOptionalCheckbox.visibility = if (isSoftCategory && depositApplicableCheckbox.isChecked) View.VISIBLE else View.GONE
 		// Speck & Käse: Preis wird beim Verkauf eingegeben
 		articlePriceInput.visibility = if (isWeightCategory) View.GONE else View.VISIBLE
 		weightPriceHint.visibility = if (isWeightCategory) View.VISIBLE else View.GONE
@@ -213,7 +221,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 			hasBottleCheckbox.isChecked,
 			hasGlass01Checkbox.isChecked,
 			hasGlass02Checkbox.isChecked,
-			!isPfand && depositApplicableCheckbox.isChecked,
+			if (isSoft) depositApplicableCheckbox.isChecked else !isPfand && depositApplicableCheckbox.isChecked,
 			(isWeinArtikel || isSoft) && glassDepositOptionalCheckbox.isChecked,
 			glass01Cents,
 			glass02Cents
