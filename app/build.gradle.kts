@@ -9,6 +9,10 @@ val signingKeyAlias = System.getenv("KEY_ALIAS")
 val signingKeyPassword = System.getenv("KEY_PASSWORD")
 val hasCiSigning = !keystoreFilePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() && !signingKeyAlias.isNullOrBlank() && !signingKeyPassword.isNullOrBlank()
 
+// Lokaler Keystore (immer vorhanden, wird für lokale Release-Builds verwendet)
+val localKeystoreFile = rootProject.file("app/speckdealer-release.jks")
+val hasLocalSigning = localKeystoreFile.exists()
+
 android {
 	compileSdkVersion(31)
 
@@ -16,8 +20,8 @@ android {
 		applicationId = "com.speckdealer.app"
 		minSdkVersion(24)
 		targetSdkVersion(31)
-		versionCode = 11
-		versionName = "0.1.12"
+		versionCode = 21
+		versionName = "0.1.21"
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
@@ -30,13 +34,20 @@ android {
 				keyAlias = signingKeyAlias
 				keyPassword = signingKeyPassword
 			}
+		} else if (hasLocalSigning) {
+			create("release") {
+				storeFile = localKeystoreFile
+				storePassword = "Jamesbond##007##"
+				keyAlias = "speckdealer-key"
+				keyPassword = "Jamesbond##007##"
+			}
 		}
 	}
 
 	buildTypes {
 		getByName("release") {
 			isMinifyEnabled = false
-			if (hasCiSigning) {
+			if (hasCiSigning || hasLocalSigning) {
 				signingConfig = signingConfigs.getByName("release")
 			}
 			proguardFiles(
