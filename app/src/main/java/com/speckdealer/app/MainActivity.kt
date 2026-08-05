@@ -74,7 +74,21 @@ class MainActivity : AppCompatActivity() {
 
 	private fun setupMenuTiles() {
 		try {
-			findViewById<View?>(R.id.salesTile)?.setOnClickListener {
+			val salesTile = findViewById<View?>(R.id.salesTile)
+			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
+			val updateTile = findViewById<View?>(R.id.updateTile)
+
+			if (salesTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: salesTile fehlt im Layout")
+			}
+			if (articleManagementTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: articleManagementTile fehlt im Layout")
+			}
+			if (updateTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: updateTile fehlt im Layout")
+			}
+
+			salesTile?.setOnClickListener {
 				try {
 					startActivity(Intent(this, SalesActivity::class.java))
 				} catch (e: Exception) {
@@ -84,7 +98,7 @@ class MainActivity : AppCompatActivity() {
 				}
 			}
 
-			findViewById<View?>(R.id.articleManagementTile)?.setOnClickListener {
+			articleManagementTile?.setOnClickListener {
 				try {
 					startActivity(Intent(this, ArticleManagementActivity::class.java))
 				} catch (e: Exception) {
@@ -94,7 +108,7 @@ class MainActivity : AppCompatActivity() {
 				}
 			}
 
-			findViewById<View?>(R.id.updateTile)?.setOnClickListener {
+			updateTile?.setOnClickListener {
 				try {
 					if (isInstalledFromPlayStore()) {
 						startImmediateUpdateIfAvailable()
