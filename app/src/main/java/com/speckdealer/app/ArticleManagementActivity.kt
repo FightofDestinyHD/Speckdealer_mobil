@@ -187,9 +187,12 @@ class ArticleManagementActivity : AppCompatActivity() {
 		glassDepositOptionalCheckbox.visibility = if (isSoftCategory && depositApplicableCheckbox.isChecked) View.VISIBLE else View.GONE
 		// Snack: Größenoptionen
 		snackSizeContainer.visibility = if (isSnackCategory) View.VISIBLE else View.GONE
-		// Speck & Käse: Preis wird beim Verkauf eingegeben
-		articlePriceInput.visibility = if (isWeightCategory) View.GONE else View.VISIBLE
-		weightPriceHint.visibility = if (isWeightCategory) View.VISIBLE else View.GONE
+		// Speck, Käse & Snacks: allgemeines Preisfeld ausblenden
+		val hidePrice = isWeightCategory || isSnackCategory
+		articlePriceInput.visibility = if (hidePrice) View.GONE else View.VISIBLE
+		weightPriceHint.visibility = if (hidePrice) View.VISIBLE else View.GONE
+		if (isSnackCategory) weightPriceHint.text = "Preis wird über Teller-Größen (Groß/Klein) festgelegt"
+		else if (isWeightCategory) weightPriceHint.text = "⚖️ Preis wird beim Verkauf nach Gewicht eingegeben"
 	}
 
 	private fun saveArticle() {
@@ -200,9 +203,13 @@ class ArticleManagementActivity : AppCompatActivity() {
 		}
 
 		val isWeightCategory = selectedCategory == CategoryType.SPECK || selectedCategory == CategoryType.KAESE
+		val isSnackCategory2 = selectedCategory == CategoryType.SNACKS
 		val price = articlePriceInput.text.toString().trim().replace(',', '.')
-		val priceCents = if (isWeightCategory) 0 else ((price.toDoubleOrNull() ?: -1.0) * 100).toInt()
-		if (!isWeightCategory && priceCents < 0) {
+		val priceCents = when {
+			isWeightCategory || isSnackCategory2 -> 0
+			else -> ((price.toDoubleOrNull() ?: -1.0) * 100).toInt()
+		}
+		if (!isWeightCategory && !isSnackCategory2 && priceCents < 0) {
 			showMessage("Bitte gültigen Preis eingeben")
 			return
 		}

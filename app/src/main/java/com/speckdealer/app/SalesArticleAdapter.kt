@@ -49,24 +49,50 @@ class SalesArticleAdapter(
 		fun bind(item: ArticleEntity) {
 			nameText.text = item.name
 
-			// Hauptpreis: Flasche oder Standardpreis
-			val bottleLabel = if (item.isWein && item.hasBottleOption) "Flasche: " else ""
-			priceText.text = "$bottleLabel${currencyFormatter.format(item.priceCents / 100.0)}"
+			val isSnack = item.category == com.speckdealer.app.data.CategoryType.SNACKS.name
 
-			// Glas 0,1l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
-			if (item.isWein && item.hasGlass01Option && item.glass01PriceCents > 0) {
-				glass01PriceText.text = "Glas 0,1l: ${currencyFormatter.format(item.glass01PriceCents / 100.0)}"
-				glass01PriceText.visibility = View.VISIBLE
-			} else {
-				glass01PriceText.visibility = View.GONE
-			}
-
-			// Glas 0,2l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
-			if (item.isWein && item.hasGlass02Option && item.glass02PriceCents > 0) {
-				glass02PriceText.text = "Glas 0,2l: ${currencyFormatter.format(item.glass02PriceCents / 100.0)}"
-				glass02PriceText.visibility = View.VISIBLE
-			} else {
+			if (isSnack) {
+				// Snacks: Groß/Klein-Preise statt Hauptpreis
+				when {
+					item.hasLargeOption && item.hasSmallOption -> {
+						priceText.text = "Groß: ${currencyFormatter.format(item.largePriceCents / 100.0)}"
+						glass01PriceText.text = "Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"
+						glass01PriceText.visibility = View.VISIBLE
+					}
+					item.hasLargeOption -> {
+						priceText.text = "Groß: ${currencyFormatter.format(item.largePriceCents / 100.0)}"
+						glass01PriceText.visibility = View.GONE
+					}
+					item.hasSmallOption -> {
+						priceText.text = "Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"
+						glass01PriceText.visibility = View.GONE
+					}
+					else -> {
+						priceText.text = currencyFormatter.format(item.priceCents / 100.0)
+						glass01PriceText.visibility = View.GONE
+					}
+				}
 				glass02PriceText.visibility = View.GONE
+			} else {
+				// Hauptpreis: Flasche oder Standardpreis
+				val bottleLabel = if (item.isWein && item.hasBottleOption) "Flasche: " else ""
+				priceText.text = "$bottleLabel${currencyFormatter.format(item.priceCents / 100.0)}"
+
+				// Glas 0,1l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
+				if (item.isWein && item.hasGlass01Option && item.glass01PriceCents > 0) {
+					glass01PriceText.text = "Glas 0,1l: ${currencyFormatter.format(item.glass01PriceCents / 100.0)}"
+					glass01PriceText.visibility = View.VISIBLE
+				} else {
+					glass01PriceText.visibility = View.GONE
+				}
+
+				// Glas 0,2l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
+				if (item.isWein && item.hasGlass02Option && item.glass02PriceCents > 0) {
+					glass02PriceText.text = "Glas 0,2l: ${currencyFormatter.format(item.glass02PriceCents / 100.0)}"
+					glass02PriceText.visibility = View.VISIBLE
+				} else {
+					glass02PriceText.visibility = View.GONE
+				}
 			}
 
 			metaText.text = buildMetaText(item)
