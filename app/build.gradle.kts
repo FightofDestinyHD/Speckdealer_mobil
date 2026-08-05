@@ -27,15 +27,13 @@ android {
 	}
 
 	signingConfigs {
-		if (hasCiSigning) {
-			create("release") {
+		create("release") {
+			if (hasCiSigning) {
 				storeFile = file(keystoreFilePath!!)
 				storePassword = keystorePassword
 				keyAlias = signingKeyAlias
 				keyPassword = signingKeyPassword
-			}
-		} else if (hasLocalSigning) {
-			create("release") {
+			} else {
 				storeFile = localKeystoreFile
 				storePassword = "Jamesbond##007##"
 				keyAlias = "speckdealer-key"
@@ -47,9 +45,7 @@ android {
 	buildTypes {
 		getByName("release") {
 			isMinifyEnabled = false
-			if (hasCiSigning || hasLocalSigning) {
-				signingConfig = signingConfigs.getByName("release")
-			}
+			signingConfig = signingConfigs.getByName("release")
 			proguardFiles(
 				getDefaultProguardFile("proguard-android-optimize.txt"),
 				"proguard-rules.pro"
