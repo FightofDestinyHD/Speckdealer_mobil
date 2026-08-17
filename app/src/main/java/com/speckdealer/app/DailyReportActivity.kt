@@ -6,16 +6,19 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.speckdealer.app.data.DailySalesStorage
+import com.speckdealer.app.data.DepositMovementStorage
 
 class DailyReportActivity : AppCompatActivity() {
 
 	private lateinit var storage: DailySalesStorage
+	private lateinit var depositStorage: DepositMovementStorage
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_daily_report)
 
 		storage = DailySalesStorage(this)
+		depositStorage = DepositMovementStorage(this)
 
 		findViewById<Button>(R.id.reportCloseButton).setOnClickListener { finish() }
 		findViewById<Button>(R.id.reportResetButton).setOnClickListener { confirmReset() }
@@ -24,7 +27,7 @@ class DailyReportActivity : AppCompatActivity() {
 	}
 
 	private fun buildReport() {
-		val report = DailyReportBuilder.build(storage.loadAll())
+		val report = DailyReportBuilder.build(storage.loadAll(), depositStorage.loadAll())
 		findViewById<TextView>(R.id.reportFinanceText).text = report.financeText
 		findViewById<TextView>(R.id.reportGlassesText).text = report.glassesText
 		findViewById<TextView>(R.id.reportLeergutText).text = report.leergutText
@@ -39,6 +42,7 @@ class DailyReportActivity : AppCompatActivity() {
 			.setMessage("Alle Tagesumsätze werden zurückgesetzt. Fortfahren?")
 			.setPositiveButton("Zurücksetzen") { _, _ ->
 				storage.clearToday()
+				depositStorage.clearToday()
 				buildReport()
 			}
 			.setNegativeButton("Abbrechen", null)

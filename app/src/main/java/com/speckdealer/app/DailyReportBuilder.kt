@@ -1,6 +1,8 @@
 package com.speckdealer.app
 
 import com.speckdealer.app.data.CategoryType
+import com.speckdealer.app.data.DepositMovement
+import com.speckdealer.app.data.DepositMovementType
 import com.speckdealer.app.data.SaleRecord
 import java.text.NumberFormat
 import java.util.Locale
@@ -15,14 +17,54 @@ data class DailyReportData(
 )
 
 object DailyReportBuilder {
-	fun build(records: List<SaleRecord>, locale: Locale = Locale.GERMANY): DailyReportData {
+	fun build(
+		records: List<SaleRecord>,
+		depositMovements: List<DepositMovement> = emptyList(),
+		locale: Locale = Locale.GERMANY
+	): DailyReportData {
 		val currencyFmt = NumberFormat.getCurrencyInstance(locale)
 
-		val revenueNormal = records.filter { !it.isEmployee }.sumOf { it.priceCents }
+		val taxableSales = records.filter { !it.isEmployee }
+		val beverageSales = taxableSales.filter { it.taxCategory == TaxCategory.BEVERAGE.name }
+		val foodSales = taxableSales.filter { it.taxCategory == TaxCategory.FOOD.name }
+
+		val beverageNet = beverageSales.sumOf { it.netAmountCents.toLong() }
+		val beverageTax = beverageSales.sumOf { it.taxAmountCents.toLong() }
+		val beverageGross = beverageSales.sumOf { it.grossAmountCents.toLong() }
+
+		val foodNet = foodSales.sumOf { it.netAmountCents.toLong() }
+		val foodTax = foodSales.sumOf { it.taxAmountCents.toLong() }
+		val foodGross = foodSales.sumOf { it.grossAmountCents.toLong() }
+
+		val depositReceived = taxableSales.sumOf { it.depositCents.toLong() }
+		val depositReturned = depositMovements
+			.filter { it.movementType == DepositMovementType.RETURNED }
+			.sumOf { it.totalAmountCents }
+		val depositBalance = depositReceived - depositReturned
+		val netRevenueWithoutDeposit = beverageNet + foodNet
+		val taxTotal = beverageTax + foodTax
+		val grossRevenueWithoutDeposit = beverageGross + foodGross
 		val revenueEmployee = records.count { it.isEmployee }
+
 		val financeText = buildString {
-			appendLine("Umsatz (ohne Mitarbeiter): ${currencyFmt.format(revenueNormal / 100.0)}")
+			appendLine("Umsatz Waren/Getränke ohne Pfand: ${currencyFmt.format(grossRevenueWithoutDeposit / 100.0)}")
+			appendLine("Netto-Umsatz: ${currencyFmt.format(netRevenueWithoutDeposit / 100.0)}")
+			appendLine("Umsatzsteuer: ${currencyFmt.format(taxTotal / 100.0)}")
+			appendLine("Brutto-Umsatz ohne Pfand: ${currencyFmt.format(grossRevenueWithoutDeposit / 100.0)}")
+			appendLine("Pfand erhalten: ${currencyFmt.format(depositReceived / 100.0)}")
+			appendLine("Pfand zurückgegeben: ${currencyFmt.format(depositReturned / 100.0)}")
+			appendLine("Pfand-Saldo: ${currencyFmt.format(depositBalance / 100.0)}")
+			appendLine("Auszahlungsbetrag Pfandrückgabe: ${currencyFmt.format(depositReturned / 100.0)}")
 			appendLine("Mitarbeiterverkäufe (kostenlos): $revenueEmployee Stück")
+			appendLine()
+			appendLine("Getränke 19 %:")
+			appendLine("  Netto: ${currencyFmt.format(beverageNet / 100.0)}")
+			appendLine("  Steuer: ${currencyFmt.format(beverageTax / 100.0)}")
+			appendLine("  Brutto: ${currencyFmt.format(beverageGross / 100.0)}")
+			appendLine("Speisen 7 %:")
+			appendLine("  Netto: ${currencyFmt.format(foodNet / 100.0)}")
+			appendLine("  Steuer: ${currencyFmt.format(foodTax / 100.0)}")
+			appendLine("  Brutto: ${currencyFmt.format(foodGross / 100.0)}")
 		}.trimEnd()
 
 		val weinRecords = records.filter { it.category == CategoryType.WEIN.storageValue }
