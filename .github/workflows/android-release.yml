@@ -23,14 +23,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
       - name: Run unit tests
-        run: ./gradlew test
+        run: bash ./gradlew test
 
       - name: Run lint
-        run: ./gradlew lint
+        run: bash ./gradlew lint
 
       - name: Assemble debug
-        run: ./gradlew assembleDebug
+        run: bash ./gradlew assembleDebug
 
   release:
     runs-on: ubuntu-latest
