@@ -55,6 +55,8 @@ class SalesActivity : AppCompatActivity() {
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.GERMANY)
 	private val cartItems = mutableListOf<CartEntry>()
+	@Volatile
+	private var checkoutInProgress = false
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -104,7 +106,7 @@ class SalesActivity : AppCompatActivity() {
 			updateCart()
 		}
 		findViewById<Button>(R.id.cartCheckoutButton).setOnClickListener {
-			if (cartItems.isEmpty()) return@setOnClickListener
+			if (cartItems.isEmpty() || checkoutInProgress) return@setOnClickListener
 			showPriceAdjustmentDialog()
 		}
 	}
@@ -154,27 +156,54 @@ class SalesActivity : AppCompatActivity() {
 			.setMessage("Wie viel hat der Kunde gegeben?")
 			.setView(container)
 			.setPositiveButton("Kassieren") { _, _ ->
+				if (checkoutInProgress) return@setPositiveButton
+				checkoutInProgress = true
+				val checkoutId = UUID.randomUUID().toString()
 				val givenStr = input.text.toString().trim().replace(',', '.')
 				val givenCents = ((givenStr.toDoubleOrNull() ?: 0.0) * 100).toInt()
 				val changeCents = givenCents - finalTotalCents
-				// Persistieren mit finalem Preis (anteilig skalieren wenn angepasst)
+				// Persistieren mit finalem Preis (anteilig skaliert) erst beim Checkout
 				val originalTotal = cartItems.sumOf { it.totalCents }.coerceAtLeast(1)
-				val records = cartItems.map { entry ->
+				val records = cartItems.flatMap { entry ->
 					val adjustedPrice = (entry.priceCents.toLong() * finalTotalCents / originalTotal).toInt()
-					SaleRecord(
+					val mainRecord = SaleRecord(
 						articleName  = entry.articleName.ifBlank { entry.displayName },
 						category     = entry.category,
 						servingType  = entry.servingType,
 						priceCents   = adjustedPrice,
 						depositCents = entry.depositCents,
-						isEmployee   = entry.isEmployee
+						isEmployee   = entry.isEmployee,
+						checkoutId   = checkoutId
 					)
+					if (entry.category == CategoryType.ANGEBOT.storageValue) {
+						listOf(
+							mainRecord,
+							SaleRecord(
+								articleName = "${entry.articleName.ifBlank { entry.displayName }} (Flasche)",
+								category = CategoryType.ANGEBOT.storageValue,
+								servingType = "BOTTLE",
+								priceCents = 0,
+								depositCents = 0,
+								isEmployee = entry.isEmployee,
+								checkoutId = checkoutId
+							)
+						)
+					} else {
+						listOf(mainRecord)
+					}
 				}
-				lifecycleScope.launch(Dispatchers.IO) { dailySalesStorage.appendRecords(records) }
-				cartItems.clear()
-				updateCart()
-				// Rückgeld anzeigen (landet NICHT im Tagesabschluss)
-				showChangeDialog(changeCents)
+				lifecycleScope.launch(Dispatchers.IO) {
+					try {
+						dailySalesStorage.appendRecords(records)
+						withContext(Dispatchers.Main) {
+							cartItems.clear()
+							updateCart()
+							showChangeDialog(changeCents)
+						}
+					} finally {
+						checkoutInProgress = false
+					}
+				}
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
@@ -243,10 +272,14 @@ class SalesActivity : AppCompatActivity() {
 		observeJob = lifecycleScope.launch {
 			try {
 				if (categoryType == CategoryType.SNACKS) {
-					// Snacks-Tab: Snacks + Angebote zusammen anzeigen
-					repository.observeArticlesByCategory(CategoryType.SNACKS).collectLatest { snacks ->
-						val angebote = try { repository.getArticlesByCategory(CategoryType.ANGEBOT) } catch (e: Exception) { emptyList() }
-						adapter.submitList(snacks + angebote)
+					// Snacks-Tab: Snacks + Angebote reaktiv aus derselben Quelle
+					repository.observeAllArticles().collectLatest { allArticles ->
+						adapter.submitList(
+							allArticles.filter {
+								it.category == CategoryType.SNACKS.storageValue ||
+								it.category == CategoryType.ANGEBOT.storageValue
+							}
+						)
 					}
 				} else {
 					repository.observeArticlesByCategory(categoryType).collectLatest { articles ->
@@ -453,24 +486,6 @@ class SalesActivity : AppCompatActivity() {
 			)
 			orderStorage.add(order)
 
-			// SaleRecord: Teller
-			dailySalesStorage.appendRecords(listOf(SaleRecord(
-				articleName  = article.name,
-				category     = CategoryType.ANGEBOT.storageValue,
-				servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
-				priceCents   = priceCents,
-				depositCents = actualDepositCents,
-				isEmployee   = isEmployee
-			)))
-			// SaleRecord: Flasche (für Leergut-Zählung)
-			dailySalesStorage.appendRecords(listOf(SaleRecord(
-				articleName  = "${article.name} (Flasche)",
-				category     = CategoryType.ANGEBOT.storageValue,
-				servingType  = "BOTTLE",
-				priceCents   = 0,
-				depositCents = 0,
-				isEmployee   = isEmployee
-			)))
 
 			withContext(Dispatchers.Main) {
 				val total     = priceCents + actualDepositCents
@@ -618,17 +633,6 @@ class SalesActivity : AppCompatActivity() {
 				sonderwunsch = sonderwunsch
 			)
 			orderStorage.add(order)
-
-			// Auch als SaleRecord für Tagesabschluss
-			val saleRecord = SaleRecord(
-				articleName  = article.name,
-				category     = article.category,
-				servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
-				priceCents   = priceCents,
-				depositCents = actualDepositCents,
-				isEmployee   = isEmployee
-			)
-			dailySalesStorage.appendRecords(listOf(saleRecord))
 
 			withContext(Dispatchers.Main) {
 				val total     = priceCents + actualDepositCents

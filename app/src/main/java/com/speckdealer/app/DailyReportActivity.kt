@@ -80,7 +80,9 @@ class DailyReportActivity : AppCompatActivity() {
 
 		// Angebots-Flaschen (separater Hilfseintrag mit servingType=BOTTLE)
 		val angebotFlaschen = records.filter {
-			it.category == CategoryType.ANGEBOT.storageValue && it.servingType == "BOTTLE"
+			it.category == CategoryType.ANGEBOT.storageValue &&
+			it.servingType == "BOTTLE" &&
+			it.articleName.endsWith("(Flasche)")
 		}
 		if (angebotFlaschen.isNotEmpty()) {
 			leergutLines.add("Angebote (Weinflaschen): ${angebotFlaschen.size} Fl.")
