@@ -40,12 +40,13 @@ if (isReleaseTaskRequested && (releaseStoreFile == null || !releaseStoreFile.exi
 }
 
 android {
-	compileSdkVersion(34)
+	namespace = "com.speckdealer.app"
+	compileSdk = 34
 
 	defaultConfig {
 		applicationId = "com.speckdealer.app"
-		minSdkVersion(24)
-		targetSdkVersion(34)
+		minSdk = 24
+		targetSdk = 34
 		versionCode = 38
 		versionName = "0.1.38"
 
@@ -75,16 +76,17 @@ android {
 	}
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.VERSION_1_8
-		targetCompatibility = JavaVersion.VERSION_1_8
+		sourceCompatibility = JavaVersion.VERSION_17
+		targetCompatibility = JavaVersion.VERSION_17
 	}
 
 	kotlinOptions {
-		jvmTarget = "1.8"
+		jvmTarget = "17"
 	}
 
 	buildFeatures {
 		viewBinding = true
+		buildConfig = true
 	}
 }
 
@@ -94,7 +96,7 @@ dependencies {
 	implementation("com.google.android.material:material:1.11.0")
 	implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 	implementation("androidx.recyclerview:recyclerview:1.3.2")
-	implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.31")
+	implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 	implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 	implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
 	implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")

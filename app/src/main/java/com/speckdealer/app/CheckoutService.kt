@@ -226,8 +226,8 @@ class CheckoutService(
 			}
 			markJournalCompleted(
 				transactionId,
-				saleRecordIds = sales.map { it.recordId },
-				orderRecordIds = orders.map { it.id }
+				sales.map { it.recordId },
+				orders.map { it.id }
 			)
 		} catch (e: Exception) {
 			markJournalFailed(transactionId, e.message ?: e.javaClass.simpleName)

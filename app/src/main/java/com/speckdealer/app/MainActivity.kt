@@ -28,6 +28,7 @@ import com.speckdealer.app.data.DepositMovementType
 import java.io.File
 import java.net.HttpURLConnection
 import java.security.MessageDigest
+import java.util.UUID
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
