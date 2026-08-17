@@ -2,6 +2,8 @@ package com.speckdealer.app
 
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.NumberFormat
+import java.util.Locale
 
 object MoneyValueService {
 
@@ -87,5 +89,9 @@ object MoneyValueService {
 		}
 
 		return base
+	}
+
+	fun formatCents(cents: Long, locale: Locale = Locale.GERMANY): String {
+		return NumberFormat.getCurrencyInstance(locale).format(cents / 100.0)
 	}
 }

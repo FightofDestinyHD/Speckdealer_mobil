@@ -35,6 +35,10 @@ public class ArticleRepository {
 		}
 	}
 
+	public String resolveDepositType(ArticleEntity article) {
+		return storage.resolveDepositType(article);
+	}
+
 	public long saveArticle(ArticleEntity article) {
 		storage.saveArticle(article);
 		return article.id;

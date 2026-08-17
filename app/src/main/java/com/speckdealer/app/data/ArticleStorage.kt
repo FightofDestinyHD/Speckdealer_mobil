@@ -48,8 +48,27 @@ class ArticleStorage(context: Context) {
 	}
 
 	fun getDepositArticleForType(typeToken: String): ArticleEntity? {
-		return getDepositArticles().firstOrNull { article ->
-			article.name.lowercase().contains(typeToken.lowercase())
+		val normalizedToken = typeToken.trim().lowercase()
+		if (normalizedToken.isBlank()) return null
+		val deposits = getDepositArticles()
+		val direct = deposits.firstOrNull { article ->
+			resolveDepositType(article) == normalizedToken
+		}
+		if (direct != null) return direct
+		return deposits.firstOrNull { article ->
+			article.name.lowercase().contains(normalizedToken)
+		}
+	}
+
+	fun resolveDepositType(article: ArticleEntity): String {
+		val normalizedName = article.name.lowercase()
+		return when {
+			normalizedName.contains("teller") -> "teller"
+			normalizedName.contains("0,1") || normalizedName.contains("0.1") -> "glass_01"
+			normalizedName.contains("0,2") || normalizedName.contains("0.2") -> "glass_02"
+			normalizedName.contains("glas") -> "glas"
+			normalizedName.contains("flasche") || normalizedName.contains("bottle") -> "bottle"
+			else -> "unknown"
 		}
 	}
 

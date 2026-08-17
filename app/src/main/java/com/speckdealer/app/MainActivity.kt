@@ -8,7 +8,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
 import android.view.View
+import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
@@ -20,6 +22,9 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.speckdealer.app.data.AppGraph
+import com.speckdealer.app.data.DepositMovement
+import com.speckdealer.app.data.DepositMovementStorage
+import com.speckdealer.app.data.DepositMovementType
 import java.io.File
 import java.net.HttpURLConnection
 import java.security.MessageDigest
@@ -30,6 +35,7 @@ class MainActivity : AppCompatActivity() {
 	private var appUpdateManager: AppUpdateManager? = null
 	private var cachedUpdateInfo: AppUpdateInfo? = null
 	private var pendingApkFile: File? = null
+	private var depositReturnInProgress = false
 
 	private data class ReleaseAsset(
 		val apkUrl: String,
@@ -95,6 +101,7 @@ class MainActivity : AppCompatActivity() {
 			val ordersTile = findViewById<View?>(R.id.ordersTile)
 			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
 			val dailyReportTile = findViewById<View?>(R.id.dailyReportTile)
+			val depositReturnTile = findViewById<View?>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
 
 			if (salesTile == null) {
@@ -102,6 +109,9 @@ class MainActivity : AppCompatActivity() {
 			}
 			if (articleManagementTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: articleManagementTile fehlt im Layout")
+			}
+			if (depositReturnTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: depositReturnTile fehlt im Layout")
 			}
 			if (updateTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: updateTile fehlt im Layout")
@@ -144,6 +154,10 @@ class MainActivity : AppCompatActivity() {
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}
+			}
+
+			depositReturnTile?.setOnClickListener {
+				openDepositReturn()
 			}
 
 			updateTile?.setOnClickListener {
@@ -192,6 +206,115 @@ class MainActivity : AppCompatActivity() {
 		} catch (e: Exception) {
 			e.printStackTrace()
 		}
+	}
+
+	private fun openDepositReturn() {
+		if (depositReturnInProgress) return
+		val repository = AppGraph.repository(this)
+		val depositStorage = DepositMovementStorage(this)
+		val depositArticles = repository.getDepositArticles()
+		if (depositArticles.isEmpty()) {
+			Snackbar.make(findViewById(android.R.id.content), "Keine Pfandkonfiguration vorhanden.", Snackbar.LENGTH_LONG).show()
+			return
+		}
+
+		val uniqueByType = linkedMapOf<String, com.speckdealer.app.data.ArticleEntity>()
+		depositArticles.forEach { article ->
+			val type = repository.resolveDepositType(article)
+			if (type != "unknown" && !uniqueByType.containsKey(type)) {
+				uniqueByType[type] = article
+			}
+		}
+		if (uniqueByType.isEmpty()) {
+			Snackbar.make(findViewById(android.R.id.content), "Pfandarten konnten nicht bestimmt werden.", Snackbar.LENGTH_LONG).show()
+			return
+		}
+
+		val options = uniqueByType.entries.toList()
+		AlertDialog.Builder(this)
+			.setTitle("Pfandrückgabe")
+			.setMessage("Welcher Pfand wird zurückgegeben?")
+			.setItems(options.map { (_, article) -> article.name }.toTypedArray()) { _, which ->
+				val selected = options[which]
+				showDepositQuantityDialog(selected.key, selected.value.name, selected.value.priceCents.toLong(), depositStorage)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun showDepositQuantityDialog(
+		depositType: String,
+		displayName: String,
+		unitAmountCents: Long,
+		depositStorage: DepositMovementStorage
+	) {
+		if (unitAmountCents <= 0L) {
+			Snackbar.make(findViewById(android.R.id.content), "Ungültiger Pfandbetrag konfiguriert.", Snackbar.LENGTH_LONG).show()
+			return
+		}
+		val input = EditText(this).apply {
+			inputType = InputType.TYPE_CLASS_NUMBER
+			hint = "Anzahl"
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Pfandrückgabe")
+			.setMessage("Pfandart: $displayName\nEinzelbetrag: ${MoneyValueService.formatCents(unitAmountCents)}")
+			.setView(input)
+			.setPositiveButton("Weiter") { _, _ ->
+				val quantityText = input.text?.toString()?.trim().orEmpty()
+				val quantity = quantityText.toIntOrNull()
+				if (quantity == null || quantity <= 0 || quantity > 10_000) {
+					Snackbar.make(findViewById(android.R.id.content), "Bitte eine gültige positive Anzahl eingeben.", Snackbar.LENGTH_LONG).show()
+					return@setPositiveButton
+				}
+				val total = unitAmountCents * quantity.toLong()
+				showDepositReturnConfirmation(depositType, displayName, quantity, unitAmountCents, total, depositStorage)
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
+	}
+
+	private fun showDepositReturnConfirmation(
+		depositType: String,
+		displayName: String,
+		quantity: Int,
+		unitAmountCents: Long,
+		totalAmountCents: Long,
+		depositStorage: DepositMovementStorage
+	) {
+		val summary = buildString {
+			appendLine("Pfandart: $displayName")
+			appendLine("Anzahl: $quantity")
+			appendLine("Einzelbetrag: ${MoneyValueService.formatCents(unitAmountCents)}")
+			append("Gesamter Rückgabebetrag: ${MoneyValueService.formatCents(totalAmountCents)}")
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Pfandrückgabe bestätigen")
+			.setMessage(summary)
+			.setPositiveButton("Bestätigen") { _, _ ->
+				if (depositReturnInProgress) return@setPositiveButton
+				depositReturnInProgress = true
+				runCatching {
+					depositStorage.appendMovement(
+						DepositMovement(
+							transactionId = UUID.randomUUID().toString(),
+							depositType = depositType,
+							quantity = quantity,
+							unitAmountCents = unitAmountCents,
+							totalAmountCents = totalAmountCents,
+							movementType = DepositMovementType.RETURNED
+						)
+					)
+				}.onSuccess {
+					Snackbar.make(findViewById(android.R.id.content), "Zurückgegeben: ${MoneyValueService.formatCents(totalAmountCents)}", Snackbar.LENGTH_LONG).show()
+				}.onFailure {
+					Snackbar.make(findViewById(android.R.id.content), "Pfandrückgabe konnte nicht gespeichert werden.", Snackbar.LENGTH_LONG).show()
+				}.also {
+					depositReturnInProgress = false
+				}
+			}
+			.setNegativeButton("Abbrechen", null)
+			.show()
 	}
 
 	private fun startIntroTransition() {
