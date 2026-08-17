@@ -1,25 +1,51 @@
+import java.util.Properties
+
 plugins {
 	id("com.android.application")
 	id("org.jetbrains.kotlin.android")
 }
 
-val keystoreFilePath = System.getenv("KEYSTORE_FILE")
-val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-val signingKeyAlias = System.getenv("KEY_ALIAS")
-val signingKeyPassword = System.getenv("KEY_PASSWORD")
-val hasCiSigning = !keystoreFilePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() && !signingKeyAlias.isNullOrBlank() && !signingKeyPassword.isNullOrBlank()
+val keystoreProps = Properties().apply {
+	val file = rootProject.file("keystore.properties")
+	if (file.exists()) {
+		file.inputStream().use { load(it) }
+	}
+}
 
-// Lokaler Keystore (immer vorhanden, wird für lokale Release-Builds verwendet)
-val localKeystoreFile = rootProject.file("app/speckdealer-release.jks")
-val hasLocalSigning = localKeystoreFile.exists()
+fun secret(name: String, propertyKey: String): String? {
+	return System.getenv(name)?.takeIf { it.isNotBlank() }
+		?: (keystoreProps.getProperty(propertyKey)?.takeIf { it.isNotBlank() })
+}
+
+val releaseStoreFilePath = secret("KEYSTORE_FILE", "storeFile")
+val releaseStorePassword = secret("KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = secret("KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = secret("KEY_PASSWORD", "keyPassword")
+val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
+	!releaseStorePassword.isNullOrBlank() &&
+	!releaseKeyAlias.isNullOrBlank() &&
+	!releaseKeyPassword.isNullOrBlank()
+val releaseStoreFile = releaseStoreFilePath?.let { rootProject.file(it) }
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any { task ->
+	task.contains("Release", ignoreCase = true)
+}
+
+if (isReleaseTaskRequested && !hasReleaseSigning) {
+	throw GradleException(
+		"Release-Signing nicht konfiguriert. Bitte KEYSTORE_* Umgebungsvariablen setzen oder eine lokale keystore.properties (nicht committen) anlegen."
+	)
+}
+if (isReleaseTaskRequested && (releaseStoreFile == null || !releaseStoreFile.exists())) {
+	throw GradleException("Keystore-Datei für Release nicht gefunden: ${releaseStoreFile?.absolutePath}")
+}
 
 android {
-	compileSdkVersion(31)
+	compileSdkVersion(34)
 
 	defaultConfig {
 		applicationId = "com.speckdealer.app"
 		minSdkVersion(24)
-		targetSdkVersion(31)
+		targetSdkVersion(34)
 		versionCode = 38
 		versionName = "0.1.38"
 
@@ -28,16 +54,11 @@ android {
 
 	signingConfigs {
 		create("release") {
-			if (hasCiSigning) {
-				storeFile = file(keystoreFilePath!!)
-				storePassword = keystorePassword
-				keyAlias = signingKeyAlias
-				keyPassword = signingKeyPassword
-			} else {
-				storeFile = localKeystoreFile
-				storePassword = "Jamesbond##007##"
-				keyAlias = "speckdealer-key"
-				keyPassword = "Jamesbond##007##"
+			if (hasReleaseSigning) {
+				storeFile = releaseStoreFile
+				storePassword = releaseStorePassword
+				keyAlias = releaseKeyAlias
+				keyPassword = releaseKeyPassword
 			}
 		}
 	}
@@ -68,21 +89,21 @@ android {
 }
 
 dependencies {
-	implementation("androidx.core:core-ktx:1.7.0")
-	implementation("androidx.appcompat:appcompat:1.4.2")
-	implementation("com.google.android.material:material:1.5.0")
+	implementation("androidx.core:core-ktx:1.12.0")
+	implementation("androidx.appcompat:appcompat:1.6.1")
+	implementation("com.google.android.material:material:1.11.0")
 	implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-	implementation("androidx.recyclerview:recyclerview:1.2.1")
+	implementation("androidx.recyclerview:recyclerview:1.3.2")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.31")
-	implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.3.1")
-	implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1")
-	implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.3.1")
-	implementation("androidx.room:room-runtime:2.3.0")
-	implementation("androidx.room:room-ktx:2.3.0")
-	annotationProcessor("androidx.room:room-compiler:2.3.0")
-	implementation("com.google.android.play:app-update:2.0.1")
+	implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+	implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
+	implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
+	implementation("androidx.room:room-runtime:2.5.2")
+	implementation("androidx.room:room-ktx:2.5.2")
+	annotationProcessor("androidx.room:room-compiler:2.5.2")
+	implementation("com.google.android.play:app-update:2.1.0")
 
 	testImplementation("junit:junit:4.13.2")
-	androidTestImplementation("androidx.test.ext:junit:1.1.3")
-	androidTestImplementation("androidx.test.espresso:espresso-core:3.4.0")
+	androidTestImplementation("androidx.test.ext:junit:1.1.5")
+	androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

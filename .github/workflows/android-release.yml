@@ -17,10 +17,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate local artifacts
+      - name: Validate local artifacts and checksums
         run: |
           test -f release-artifacts/app-release.apk
           test -f release-artifacts/app-release.aab
+          test -f release-artifacts/app-release.apk.sha256
+          test -f release-artifacts/app-release.aab.sha256
+
+      - name: Verify checksums before release
+        run: |
+          expected_apk="$(tr -d ' \r\n' < release-artifacts/app-release.apk.sha256)"
+          actual_apk="$(sha256sum release-artifacts/app-release.apk | awk '{print $1}')"
+          test "$expected_apk" = "$actual_apk"
+          expected_aab="$(tr -d ' \r\n' < release-artifacts/app-release.aab.sha256)"
+          actual_aab="$(sha256sum release-artifacts/app-release.aab | awk '{print $1}')"
+          test "$expected_aab" = "$actual_aab"
 
       - name: Create GitHub Release from local artifacts
         uses: softprops/action-gh-release@v2
@@ -28,5 +39,7 @@ jobs:
           files: |
             release-artifacts/app-release.apk
             release-artifacts/app-release.aab
+            release-artifacts/app-release.apk.sha256
+            release-artifacts/app-release.aab.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -21,7 +21,14 @@ local.properties
 .DS_Store
 Thumbs.db
 
-# Keystore files
+# Keystore files / signing secrets
 *.jks
 *.keystore
 *.base64
+keystore.properties
+
+# Release artifacts (nur bewusst versionieren, Standard: ignorieren)
+release-artifacts/*.apk
+release-artifacts/*.aab
+release-artifacts/*.sha256
+!release-artifacts/.gitkeep

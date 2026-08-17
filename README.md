@@ -4,8 +4,15 @@ Android-Tablet-optimiertes Grundgerüst mit lokalem Build und automatisiertem Up
 
 ## Voraussetzungen
 - Android Studio (aktuelle stabile Version)
-- Android SDK Platform 31
-- JDK 17 lokal für Build/Signierung
+- Android SDK Platform 34
+- JDK 17+ lokal für Build/Signierung
+
+## Lokale Signierung sicher konfigurieren
+1. `keystore.properties.example` nach `keystore.properties` kopieren.
+2. Echte Werte nur lokal eintragen (niemals committen).
+3. Alternativ `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` als Umgebungsvariablen setzen.
+
+Ohne valide Signierung schlägt ein Release-Build absichtlich fehl.
 
 ## Lokal starten
 1. Projekt in Android Studio öffnen.
@@ -21,23 +28,30 @@ Builds werden lokal erzeugt, dann hochgeladen/released.
 
 1. Lokal Release bauen:
    - `./gradlew :app:assembleRelease :app:bundleRelease`
-2. Artefakte ins Repo kopieren:
+2. Artefakte bereitstellen:
    - `release-artifacts/app-release.apk`
    - `release-artifacts/app-release.aab`
-3. Commit + Push der Artefakte.
+3. Prüfsummen erzeugen:
+   - `sha256sum release-artifacts/app-release.apk | awk '{print $1}' > release-artifacts/app-release.apk.sha256`
+   - `sha256sum release-artifacts/app-release.aab | awk '{print $1}' > release-artifacts/app-release.aab.sha256`
+4. Artefakte bewusst versionieren (falls gewünscht):
+   - `git add -f release-artifacts/app-release.apk release-artifacts/app-release.aab release-artifacts/app-release.apk.sha256 release-artifacts/app-release.aab.sha256`
 
 ## Upload-Workflow (ohne Cloud-Build)
 - Workflow: `.github/workflows/android-ci.yml`
-- Zweck: prüft nur, ob lokale Artefakte vorhanden sind, und lädt diese als Workflow-Artefakte hoch.
+- Zweck: prüft nur lokale Artefakte und deren Prüfsummen, dann Upload als Workflow-Artefakte.
 
 ## Release-Workflow (ohne Cloud-Build)
 - Workflow: `.github/workflows/android-release.yml`
 - Trigger:
   - Tag-Push wie `v1.0.0`
   - manuell per `workflow_dispatch`
-- Zweck: erstellt GitHub Release direkt aus
-  - `release-artifacts/app-release.apk`
-  - `release-artifacts/app-release.aab`
+- Zweck: erstellt GitHub Release direkt aus lokalen Artefakten + `.sha256`.
+
+## Update-Sicherheit in der App
+Bei GitHub-basierten APK-Updates werden vor Installation geprüft:
+- SHA-256-Prüfsumme (`.apk.sha256` muss im Release vorhanden sein)
+- Signaturgleichheit zwischen installierter App und heruntergeladener APK
 
 ## Nächster Schritt für echte Auto-Updates
 Für echte automatische Endnutzer-Updates auf Tablets ist ein fester Kanal nötig (z. B. Google Play Internal Track + In-App-Updates).
