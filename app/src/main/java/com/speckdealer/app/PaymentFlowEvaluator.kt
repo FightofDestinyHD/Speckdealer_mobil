@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 sealed class PaymentDecision {
 	object CartEmpty : PaymentDecision()
 	object Cancelled : PaymentDecision()
+	object InvalidAmount : PaymentDecision()
 	data class Underpaid(val missingCents: Long) : PaymentDecision()
 	data class Accepted(val changeCents: Long) : PaymentDecision()
 }
@@ -18,6 +19,9 @@ object PaymentFlowEvaluator {
 		if (cartTotalCents <= 0L) return PaymentDecision.CartEmpty
 		if (cancelled) return PaymentDecision.Cancelled
 		val paid = givenCents ?: return PaymentDecision.Cancelled
+		if (paid < 0L || paid > MoneyValueService.MAX_ALLOWED_CENTS) {
+			return PaymentDecision.InvalidAmount
+		}
 		return if (paid < cartTotalCents) {
 			PaymentDecision.Underpaid(cartTotalCents - paid)
 		} else {

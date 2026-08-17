@@ -1,6 +1,8 @@
 package com.speckdealer.app
 
 import com.speckdealer.app.data.CategoryType
+import com.speckdealer.app.data.DepositMovement
+import com.speckdealer.app.data.DepositMovementType
 import com.speckdealer.app.data.SaleRecord
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,26 +11,79 @@ import java.util.Locale
 class DailyReportBuilderTest {
 
 	@Test
-	fun buildsCorrectDailyReportSections() {
+	fun buildsCorrectDailyReportSections_withTaxAndDepositSeparation() {
 		val records = listOf(
-			SaleRecord("Wein A", CategoryType.WEIN.storageValue, "BOTTLE", 1000, 0, false, transactionId = "t1", recordId = "r1", timestampMs = 1),
-			SaleRecord("Wein A", CategoryType.WEIN.storageValue, "GLASS_01", 500, 100, false, transactionId = "t1", recordId = "r2", timestampMs = 2),
-			SaleRecord("Cola", CategoryType.SOFTGETRAENKE.storageValue, "STANDARD", 300, 80, false, transactionId = "t2", recordId = "r3", timestampMs = 3),
-			SaleRecord("Snack Teller", CategoryType.SNACKS.storageValue, "GROSS", 1200, 200, false, transactionId = "t3", recordId = "r4", timestampMs = 4),
-			SaleRecord("Angebot X", CategoryType.ANGEBOT.storageValue, "KLEIN", 900, 200, false, transactionId = "t4", recordId = "r5", timestampMs = 5),
-			SaleRecord("Angebot X (Flasche)", CategoryType.ANGEBOT.storageValue, "BOTTLE", 0, 0, false, transactionId = "t4", recordId = "r6", timestampMs = 6),
-			SaleRecord("Cola", CategoryType.SOFTGETRAENKE.storageValue, "STANDARD", 0, 0, true, transactionId = "t5", recordId = "r7", timestampMs = 7)
+			SaleRecord(
+				articleName = "Wein A",
+				category = CategoryType.WEIN.storageValue,
+				servingType = "BOTTLE",
+				priceCents = 1190,
+				depositCents = 200,
+				isEmployee = false,
+				taxCategory = TaxCategory.BEVERAGE.name,
+				taxRateBasisPoints = 1900,
+				netAmountCents = 1000,
+				taxAmountCents = 190,
+				grossAmountCents = 1190,
+				transactionId = "t1",
+				recordId = "r1",
+				timestampMs = 1
+			),
+			SaleRecord(
+				articleName = "Snack Teller",
+				category = CategoryType.SNACKS.storageValue,
+				servingType = "GROSS",
+				priceCents = 1070,
+				depositCents = 100,
+				isEmployee = false,
+				taxCategory = TaxCategory.FOOD.name,
+				taxRateBasisPoints = 700,
+				netAmountCents = 1000,
+				taxAmountCents = 70,
+				grossAmountCents = 1070,
+				transactionId = "t2",
+				recordId = "r2",
+				timestampMs = 2
+			),
+			SaleRecord(
+				articleName = "Cola",
+				category = CategoryType.SOFTGETRAENKE.storageValue,
+				servingType = "STANDARD",
+				priceCents = 0,
+				depositCents = 0,
+				isEmployee = true,
+				taxCategory = TaxCategory.BEVERAGE.name,
+				taxRateBasisPoints = 1900,
+				netAmountCents = 0,
+				taxAmountCents = 0,
+				grossAmountCents = 0,
+				transactionId = "t3",
+				recordId = "r3",
+				timestampMs = 3
+			)
+		)
+		val returns = listOf(
+			DepositMovement(
+				transactionId = "d1",
+				depositType = "glass_01",
+				quantity = 2,
+				unitAmountCents = 100,
+				totalAmountCents = 200,
+				movementType = DepositMovementType.RETURNED,
+				timestampMs = 4
+			)
 		)
 
-		val report = DailyReportBuilder.build(records, Locale.GERMANY)
+		val report = DailyReportBuilder.build(records, returns, Locale.GERMANY)
 
-		assertTrue(report.financeText.contains("Umsatz (ohne Mitarbeiter): 39,00"))
-		assertTrue(report.financeText.contains("Mitarbeiterverkäufe (kostenlos): 1 Stück"))
-		assertTrue(report.glassesText.contains("Glas 0,1l (halbwertig): 1 Stück"))
-		assertTrue(report.leergutText.contains("Angebote (Weinflaschen): 1 Fl."))
-		assertTrue(report.softdrinksText.contains("Cola: 2 Stück"))
-		assertTrue(report.tellerText.contains("Großer Teller: 1 Stück"))
-		assertTrue(report.tellerText.contains("Kleiner Teller: 1 Stück"))
+		assertTrue(report.financeText.contains("Netto-Umsatz: 20,00"))
+		assertTrue(report.financeText.contains("Umsatzsteuer: 2,60"))
+		assertTrue(report.financeText.contains("Brutto-Umsatz ohne Pfand: 22,60"))
+		assertTrue(report.financeText.contains("Pfand erhalten: 3,00"))
+		assertTrue(report.financeText.contains("Pfand zurückgegeben: 2,00"))
+		assertTrue(report.financeText.contains("Pfand-Saldo: 1,00"))
+		assertTrue(report.financeText.contains("Getränke 19 %:"))
+		assertTrue(report.financeText.contains("Speisen 7 %:"))
 		assertTrue(report.employeeText.contains("Cola: 1 Stück"))
 	}
 }

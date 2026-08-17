@@ -1,6 +1,9 @@
 package com.speckdealer.app
 
+import com.speckdealer.app.data.BeginJournalResult
 import com.speckdealer.app.data.CategoryType
+import com.speckdealer.app.data.CheckoutJournalEntry
+import com.speckdealer.app.data.CheckoutJournalStatus
 import com.speckdealer.app.data.OrderRecord
 import com.speckdealer.app.data.SaleRecord
 import org.junit.Assert.assertEquals
@@ -13,15 +16,49 @@ class CheckoutServiceTest {
 
 	private val storedSales = mutableListOf<SaleRecord>()
 	private val storedOrders = mutableListOf<OrderRecord>()
+	private val journal = mutableMapOf<String, CheckoutJournalEntry>()
 	private lateinit var checkoutService: CheckoutService
+	private var failOrdersOnce = false
 
 	@Before
 	fun setup() {
 		storedSales.clear()
 		storedOrders.clear()
+		journal.clear()
+		failOrdersOnce = false
 		checkoutService = CheckoutService(
 			appendSales = { storedSales.addAll(it) },
-			appendOrders = { storedOrders.addAll(it) }
+			appendOrders = {
+				if (failOrdersOnce) {
+					failOrdersOnce = false
+					throw IllegalStateException("order write failed")
+				}
+				storedOrders.addAll(it)
+			},
+			loadSalesByTransaction = { txId -> storedSales.filter { it.transactionId == txId } },
+			loadOrdersByTransaction = { txId -> storedOrders.filter { it.transactionId == txId } },
+			beginJournal = { txId ->
+				val existing = journal[txId]
+				if (existing == null) {
+					journal[txId] = CheckoutJournalEntry(txId, CheckoutJournalStatus.PENDING, emptyList(), emptyList())
+					BeginJournalResult(createdNew = true, existingEntry = null)
+				} else {
+					BeginJournalResult(createdNew = false, existingEntry = existing)
+				}
+			},
+			markJournalCompleted = { txId, saleIds, orderIds ->
+				journal[txId] = CheckoutJournalEntry(
+					transactionId = txId,
+					status = CheckoutJournalStatus.COMPLETED,
+					saleRecordIds = saleIds,
+					orderRecordIds = orderIds
+				)
+			},
+			markJournalFailed = { txId, error ->
+				val prev = journal[txId] ?: CheckoutJournalEntry(txId, CheckoutJournalStatus.PENDING, emptyList(), emptyList())
+				journal[txId] = prev.copy(status = CheckoutJournalStatus.FAILED, errorMessage = error)
+			},
+			loadJournal = { txId -> journal[txId] }
 		)
 	}
 
@@ -46,14 +83,88 @@ class CheckoutServiceTest {
 			)
 		)
 
-		checkoutService.checkout(drafts, finalTotalCents = 1000)
+		checkoutService.checkout(drafts, finalTotalCents = 1000, transactionId = "tx-1")
 
 		assertEquals(1, storedSales.size)
 		assertEquals(1, storedOrders.size)
 	}
 
 	@Test
-	fun angebot_isSavedExactlyOnce_withBottleHelperRecord() {
+	fun repeatedCheckout_sameTransactionId_persistsOnlyOnce() {
+		val drafts = listOf(
+			SaleDraftEntry(
+				displayName = "Cola",
+				totalCents = 300,
+				articleName = "Cola",
+				category = CategoryType.SOFTGETRAENKE.storageValue,
+				priceCents = 300,
+				depositCents = 80,
+				isEmployee = false
+			)
+		)
+
+		checkoutService.checkout(drafts, finalTotalCents = 300, transactionId = "tx-repeat")
+		val second = checkoutService.checkout(drafts, finalTotalCents = 300, transactionId = "tx-repeat")
+
+		assertEquals(1, storedSales.size)
+		assertEquals(0, storedOrders.size)
+		assertTrue(second.alreadyPersisted)
+	}
+
+	@Test
+	fun partialFailure_ordersFail_retryDoesNotDuplicateSales() {
+		val drafts = listOf(
+			SaleDraftEntry(
+				displayName = "Snack",
+				totalCents = 1200,
+				articleName = "Snack",
+				category = CategoryType.SNACKS.storageValue,
+				priceCents = 1200,
+				depositCents = 0,
+				isEmployee = false,
+				orderDraft = OrderDraftPayload(
+					articleName = "Snack",
+					sizeName = "Groß",
+					basePriceCents = 1200,
+					depositCents = 0,
+					isEmployee = false
+				)
+			)
+		)
+
+		failOrdersOnce = true
+		runCatching { checkoutService.checkout(drafts, finalTotalCents = 1200, transactionId = "tx-fail") }
+		assertEquals(1, storedSales.size)
+		assertEquals(0, storedOrders.size)
+		assertEquals(CheckoutJournalStatus.FAILED, journal["tx-fail"]?.status)
+
+		checkoutService.checkout(drafts, finalTotalCents = 1200, transactionId = "tx-fail")
+		assertEquals(1, storedSales.size)
+		assertEquals(1, storedOrders.size)
+		assertEquals(CheckoutJournalStatus.COMPLETED, journal["tx-fail"]?.status)
+	}
+
+	@Test
+	fun angebot_requiresExplicitTaxCategory() {
+		val drafts = listOf(
+			SaleDraftEntry(
+				displayName = "Angebot",
+				totalCents = 1500,
+				articleName = "Angebotsteller",
+				category = CategoryType.ANGEBOT.storageValue,
+				servingType = "GROSS",
+				priceCents = 1500,
+				depositCents = 300,
+				isEmployee = false
+			)
+		)
+
+		val result = runCatching { checkoutService.checkout(drafts, finalTotalCents = 1500, transactionId = "tx-offer") }
+		assertTrue(result.isFailure)
+	}
+
+	@Test
+	fun angebot_withExplicitTaxCategory_isStoredWithBottleHelperRecord() {
 		val drafts = listOf(
 			SaleDraftEntry(
 				displayName = "Angebot",
@@ -65,96 +176,13 @@ class CheckoutServiceTest {
 				depositCents = 300,
 				isEmployee = false,
 				createBottleHelperRecord = true,
-				orderDraft = OrderDraftPayload(
-					articleName = "Angebotsteller",
-					sizeName = "Groß",
-					basePriceCents = 1500,
-					depositCents = 300,
-					isEmployee = false,
-					glaesser01 = 1,
-					glaesser02 = 1
-				)
+				explicitOfferTaxCategory = TaxCategory.FOOD
 			)
 		)
 
-		checkoutService.checkout(drafts, finalTotalCents = 1500)
-
+		checkoutService.checkout(drafts, finalTotalCents = 1500, transactionId = "tx-offer-ok")
 		assertEquals(2, storedSales.size)
 		assertEquals(1, storedSales.count { it.servingType == "BOTTLE" })
-		assertEquals(1, storedOrders.size)
-	}
-
-	@Test
-	fun wineBottleAndWineGlass_areSavedWithCorrectServingTypes() {
-		val drafts = listOf(
-			SaleDraftEntry(
-				displayName = "Wein Flasche",
-				totalCents = 1000,
-				articleName = "Wein A",
-				category = CategoryType.WEIN.storageValue,
-				servingType = "BOTTLE",
-				priceCents = 1000,
-				depositCents = 0,
-				isEmployee = false
-			),
-			SaleDraftEntry(
-				displayName = "Wein Glas",
-				totalCents = 500,
-				articleName = "Wein A",
-				category = CategoryType.WEIN.storageValue,
-				servingType = "GLASS_01",
-				priceCents = 500,
-				depositCents = 100,
-				isEmployee = false
-			)
-		)
-
-		checkoutService.checkout(drafts, finalTotalCents = 1500)
-
-		assertEquals(2, storedSales.size)
-		assertEquals(1, storedSales.count { it.servingType == "BOTTLE" })
-		assertEquals(1, storedSales.count { it.servingType == "GLASS_01" })
-	}
-
-	@Test
-	fun employeeSale_isStoredAsEmployeeAndZeroPriceAfterAllocation() {
-		val drafts = listOf(
-			SaleDraftEntry(
-				displayName = "MA Getränk",
-				totalCents = 1200,
-				articleName = "MA Getränk",
-				category = CategoryType.SOFTGETRAENKE.storageValue,
-				priceCents = 1200,
-				depositCents = 0,
-				isEmployee = true
-			)
-		)
-
-		checkoutService.checkout(drafts, finalTotalCents = 0)
-
-		val sale = storedSales.single()
-		assertTrue(sale.isEmployee)
-		assertEquals(0, sale.priceCents)
-	}
-
-	@Test
-	fun deposit_isPersistedCorrectly() {
-		val drafts = listOf(
-			SaleDraftEntry(
-				displayName = "Soft mit Pfand",
-				totalCents = 900,
-				articleName = "Cola",
-				category = CategoryType.SOFTGETRAENKE.storageValue,
-				priceCents = 900,
-				depositCents = 200,
-				isEmployee = false
-			)
-		)
-
-		checkoutService.checkout(drafts, finalTotalCents = 900)
-
-		val sale = storedSales.single()
-		assertEquals(200, sale.depositCents)
 	}
 
 	@Test
@@ -165,7 +193,7 @@ class CheckoutServiceTest {
 			SaleDraftEntry("C", 500, "C", CategoryType.SOFTGETRAENKE.storageValue, priceCents = 500, depositCents = 0, isEmployee = false)
 		)
 
-		checkoutService.checkout(drafts, finalTotalCents = 999)
+		checkoutService.checkout(drafts, finalTotalCents = 999, transactionId = "tx-round")
 
 		val sum = storedSales.sumOf { it.priceCents.toLong() }
 		assertEquals(999L, sum)

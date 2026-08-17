@@ -51,6 +51,22 @@ class PaymentFlowEvaluatorTest {
 	}
 
 	@Test
+	fun invalidNegativeOrTooLargeAmount_returnsInvalidAmount() {
+		val negative = PaymentFlowEvaluator.evaluate(
+			cartTotalCents = 100L,
+			givenCents = -1L,
+			cancelled = false
+		)
+		val tooLarge = PaymentFlowEvaluator.evaluate(
+			cartTotalCents = 100L,
+			givenCents = MoneyValueService.MAX_ALLOWED_CENTS + 1L,
+			cancelled = false
+		)
+		assertTrue(negative is PaymentDecision.InvalidAmount)
+		assertTrue(tooLarge is PaymentDecision.InvalidAmount)
+	}
+
+	@Test
 	fun cancelledPayment_returnsCancelled() {
 		val decision = PaymentFlowEvaluator.evaluate(
 			cartTotalCents = 1500L,
