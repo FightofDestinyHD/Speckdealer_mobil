@@ -15,9 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.speckdealer.app.data.DailySalesStorage
-import com.speckdealer.app.data.OrderRecord
 import com.speckdealer.app.data.OrderStorage
-import com.speckdealer.app.data.SaleRecord
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
@@ -39,14 +37,15 @@ data class CartEntry(
     val servingType: String = "STANDARD",
     val priceCents: Int = totalCents,
     val depositCents: Int = 0,
-    val isEmployee: Boolean = false
+    val isEmployee: Boolean = false,
+    val createBottleHelperRecord: Boolean = false,
+    val orderDraft: OrderDraftPayload? = null
 )
 
 class SalesActivity : AppCompatActivity() {
 
 	private lateinit var repository: ArticleRepository
-	private lateinit var dailySalesStorage: DailySalesStorage
-	private lateinit var orderStorage: OrderStorage
+	private lateinit var checkoutService: CheckoutService
 	private lateinit var tabLayout: TabLayout
 	private lateinit var cartTotalText: TextView
 	private lateinit var adapter: SalesArticleAdapter
@@ -64,8 +63,10 @@ class SalesActivity : AppCompatActivity() {
 
 		try {
 			repository = AppGraph.repository(this)
-			dailySalesStorage = DailySalesStorage(this)
+			checkoutService = CheckoutService(
+				dailySalesStorage = DailySalesStorage(this),
 				orderStorage = OrderStorage(this)
+			)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			cartTotalText = findViewById(R.id.cartTotalText)
 			setupArticleRecyclerView()
@@ -113,7 +114,7 @@ class SalesActivity : AppCompatActivity() {
 
 	/** Schritt 1: Gesamtpreis anzeigen und ggf. anpassen */
 	private fun showPriceAdjustmentDialog() {
-		val originalTotal = cartItems.sumOf { it.totalCents }
+		val originalTotal = cartItems.sumOf { it.totalCents.toLong() }
 		val input = EditText(this).apply {
 			setText(String.format(Locale.GERMANY, "%.2f", originalTotal / 100.0))
 			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
@@ -130,9 +131,12 @@ class SalesActivity : AppCompatActivity() {
 			.setMessage("Originalpreis: ${currencyFormatter.format(originalTotal / 100.0)}\nHier kannst du den Betrag noch anpassen (z. B. Rabatt):")
 			.setView(container)
 			.setPositiveButton("Weiter") { _, _ ->
-				val adjusted = input.text.toString().trim().replace(',', '.')
-				val adjustedCents = ((adjusted.toDoubleOrNull() ?: 0.0) * 100).toInt()
-				if (adjustedCents < 0) return@setPositiveButton
+				val parsed = MoneyValueService.parseAmountToCents(input.text.toString(), allowZero = true)
+				if (!parsed.isValid) {
+					showAmountValidationError(parsed.error)
+					return@setPositiveButton
+				}
+				val adjustedCents = parsed.cents ?: 0L
 				showPaymentDialog(adjustedCents)
 			}
 			.setNegativeButton("Abbrechen", null)
@@ -140,7 +144,7 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	/** Schritt 2: Erhaltenen Betrag eingeben und Rückgeld berechnen */
-	private fun showPaymentDialog(finalTotalCents: Int) {
+	private fun showPaymentDialog(finalTotalCents: Long) {
 		val input = EditText(this).apply {
 			hint = "Erhaltener Betrag (z. B. 20.00)"
 			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
@@ -157,44 +161,37 @@ class SalesActivity : AppCompatActivity() {
 			.setView(container)
 			.setPositiveButton("Kassieren") { _, _ ->
 				if (checkoutInProgress) return@setPositiveButton
+				val givenParsed = MoneyValueService.parseAmountToCents(input.text.toString(), allowZero = true)
+				if (!givenParsed.isValid) {
+					showAmountValidationError(givenParsed.error)
+					return@setPositiveButton
+				}
+				val givenCents = givenParsed.cents ?: 0L
+				if (givenCents < finalTotalCents) {
+					showAmountValidationError(MoneyValueService.ParseError.ZERO_OR_NEGATIVE, customMessage =
+						"Unterzahlung: es fehlen ${currencyFormatter.format((finalTotalCents - givenCents) / 100.0)}")
+					return@setPositiveButton
+				}
+
 				checkoutInProgress = true
-				val checkoutId = UUID.randomUUID().toString()
-				val givenStr = input.text.toString().trim().replace(',', '.')
-				val givenCents = ((givenStr.toDoubleOrNull() ?: 0.0) * 100).toInt()
 				val changeCents = givenCents - finalTotalCents
-				// Persistieren mit finalem Preis (anteilig skaliert) erst beim Checkout
-				val originalTotal = cartItems.sumOf { it.totalCents }.coerceAtLeast(1)
-				val records = cartItems.flatMap { entry ->
-					val adjustedPrice = (entry.priceCents.toLong() * finalTotalCents / originalTotal).toInt()
-					val mainRecord = SaleRecord(
-						articleName  = entry.articleName.ifBlank { entry.displayName },
-						category     = entry.category,
-						servingType  = entry.servingType,
-						priceCents   = adjustedPrice,
+				val drafts = cartItems.map { entry ->
+					SaleDraftEntry(
+						displayName = entry.displayName,
+						totalCents = entry.totalCents,
+						articleName = entry.articleName,
+						category = entry.category,
+						servingType = entry.servingType,
+						priceCents = entry.priceCents,
 						depositCents = entry.depositCents,
-						isEmployee   = entry.isEmployee,
-						checkoutId   = checkoutId
+						isEmployee = entry.isEmployee,
+						createBottleHelperRecord = entry.createBottleHelperRecord,
+						orderDraft = entry.orderDraft
 					)
-					if (entry.category == CategoryType.ANGEBOT.storageValue) {
-						listOf(
-							mainRecord,
-							SaleRecord(
-								articleName = "${entry.articleName.ifBlank { entry.displayName }} (Flasche)",
-								category = CategoryType.ANGEBOT.storageValue,
-								servingType = "BOTTLE",
-								priceCents = 0,
-								depositCents = 0,
-								isEmployee = entry.isEmployee,
-								checkoutId = checkoutId
-							)
-						)
-					} else {
-						listOf(mainRecord)
-					}
 				}
 				lifecycleScope.launch(Dispatchers.IO) {
 					try {
-						dailySalesStorage.appendRecords(records)
+						checkoutService.checkout(drafts, finalTotalCents)
 						withContext(Dispatchers.Main) {
 							cartItems.clear()
 							updateCart()
@@ -209,9 +206,25 @@ class SalesActivity : AppCompatActivity() {
 			.show()
 	}
 
+	private fun showAmountValidationError(error: MoneyValueService.ParseError?, customMessage: String? = null) {
+		val message = customMessage ?: when (error) {
+			MoneyValueService.ParseError.EMPTY -> "Bitte Betrag eingeben."
+			MoneyValueService.ParseError.INVALID_FORMAT -> "Ungültiger Betrag. Erlaubt sind z. B. 12,50 oder 12.50."
+			MoneyValueService.ParseError.NEGATIVE -> "Negative Beträge sind nicht erlaubt."
+			MoneyValueService.ParseError.ZERO_OR_NEGATIVE -> "Betrag muss größer als 0 sein."
+			MoneyValueService.ParseError.TOO_LARGE -> "Betrag ist zu groß."
+			null -> "Ungültiger Betrag."
+		}
+		AlertDialog.Builder(this)
+			.setTitle("Eingabe prüfen")
+			.setMessage(message)
+			.setPositiveButton("OK", null)
+			.show()
+	}
+
 	/** Schritt 3: Rückgeld anzeigen */
-	private fun showChangeDialog(changeCents: Int) {
-		val changeText = if (changeCents >= 0) {
+	private fun showChangeDialog(changeCents: Long) {
+		val changeText = if (changeCents >= 0L) {
 			"Rückgeld: ${currencyFormatter.format(changeCents / 100.0)}"
 		} else {
 			"⚠️ Betrag zu gering um ${currencyFormatter.format(-changeCents / 100.0)}"
@@ -472,21 +485,6 @@ class SalesActivity : AppCompatActivity() {
 
 			val actualDepositCents = tellerDepositCents + glasDepositCents
 
-			val order = OrderRecord(
-				id           = UUID.randomUUID().toString(),
-				articleName  = article.name,
-				sizeName     = sizeName,
-				priceCents   = priceCents,
-				depositCents = actualDepositCents,
-				isEmployee   = isEmployee,
-				gurken       = 1, tomaten = 1, zwiebeln = 1, oliven = 1, brezeln = 1,
-				sonderwunsch = sonderwunsch,
-				glaesser01   = glaesser01,
-				glaesser02   = glaesser02
-			)
-			orderStorage.add(order)
-
-
 			withContext(Dispatchers.Main) {
 				val total     = priceCents + actualDepositCents
 				val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
@@ -505,7 +503,18 @@ class SalesActivity : AppCompatActivity() {
 					servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
 					priceCents   = priceCents,
 					depositCents = actualDepositCents,
-					isEmployee   = isEmployee
+					isEmployee   = isEmployee,
+					createBottleHelperRecord = true,
+					orderDraft = OrderDraftPayload(
+						articleName = article.name,
+						sizeName = sizeName,
+						basePriceCents = priceCents,
+						depositCents = actualDepositCents,
+						isEmployee = isEmployee,
+						sonderwunsch = sonderwunsch,
+						glaesser01 = glaesser01,
+						glaesser02 = glaesser02
+					)
 				))
 			}
 		}
@@ -618,22 +627,6 @@ class SalesActivity : AppCompatActivity() {
 				repository.getDepositArticleForType("teller")?.priceCents ?: 0
 			} else 0
 
-			val order = OrderRecord(
-				id           = UUID.randomUUID().toString(),
-				articleName  = article.name,
-				sizeName     = sizeName,
-				priceCents   = priceCents,
-				depositCents = actualDepositCents,
-				isEmployee   = isEmployee,
-				gurken       = gurken,
-				tomaten      = tomaten,
-				zwiebeln     = zwiebeln,
-				oliven       = oliven,
-				brezeln      = brezeln,
-				sonderwunsch = sonderwunsch
-			)
-			orderStorage.add(order)
-
 			withContext(Dispatchers.Main) {
 				val total     = priceCents + actualDepositCents
 				val sizeLabel = if (sizeName.isNotBlank()) " ($sizeName)" else ""
@@ -646,7 +639,20 @@ class SalesActivity : AppCompatActivity() {
 					servingType  = if (sizeName.isNotBlank()) sizeName.uppercase() else "STANDARD",
 					priceCents   = priceCents,
 					depositCents = actualDepositCents,
-					isEmployee   = isEmployee
+					isEmployee   = isEmployee,
+					orderDraft = OrderDraftPayload(
+						articleName = article.name,
+						sizeName = sizeName,
+						basePriceCents = priceCents,
+						depositCents = actualDepositCents,
+						isEmployee = isEmployee,
+						gurken = gurken,
+						tomaten = tomaten,
+						zwiebeln = zwiebeln,
+						oliven = oliven,
+						brezeln = brezeln,
+						sonderwunsch = sonderwunsch
+					)
 				))
 			}
 		}

@@ -11,9 +11,14 @@ class OrderStorage(context: Context) {
 	fun loadAll(): MutableList<OrderRecord> = synchronized(lock) { loadAllLocked().toMutableList() }
 
 	fun add(order: OrderRecord) {
+		addAll(listOf(order))
+	}
+
+	fun addAll(orders: List<OrderRecord>) {
+		if (orders.isEmpty()) return
 		synchronized(lock) {
 			val list = loadAllLocked().toMutableList()
-			list.add(order)
+			list.addAll(orders)
 			saveLocked(list)
 		}
 	}
