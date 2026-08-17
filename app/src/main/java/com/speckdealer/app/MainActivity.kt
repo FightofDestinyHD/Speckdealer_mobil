@@ -50,6 +50,32 @@ class MainActivity : AppCompatActivity() {
 		val errorMessage: String? = null
 	)
 
+	enum class DepositReturnType(
+		val storageValue: String,
+		val displayName: String,
+		val amountLookupTokens: List<String>,
+		val missingAmountMessage: String
+	) {
+		BOTTLE(
+			storageValue = "BOTTLE",
+			displayName = "Flasche",
+			amountLookupTokens = listOf("flasche", "bottle"),
+			missingAmountMessage = "Für Flaschenpfand ist aktuell kein Betrag konfiguriert. Bitte lege den Pfandbetrag in der Artikelverwaltung fest."
+		),
+		GLASS(
+			storageValue = "GLASS",
+			displayName = "Glas",
+			amountLookupTokens = listOf("glas", "glass_01", "glass_02"),
+			missingAmountMessage = "Für Glaspfand ist aktuell kein Betrag konfiguriert. Bitte lege den Pfandbetrag in der Artikelverwaltung fest."
+		),
+		PLATE(
+			storageValue = "PLATE",
+			displayName = "Teller",
+			amountLookupTokens = listOf("teller", "plate"),
+			missingAmountMessage = "Für Tellerpfand ist aktuell kein Betrag konfiguriert. Bitte lege den Pfandbetrag in der Artikelverwaltung fest."
+		)
+	}
+
 	companion object {
 		private const val UPDATE_REQUEST_CODE = 1001
 		private const val REQUEST_INSTALL_PERMISSION = 1002
@@ -231,44 +257,52 @@ class MainActivity : AppCompatActivity() {
 		if (depositReturnInProgress) return
 		val repository = AppGraph.repository(this)
 		val depositStorage = DepositMovementStorage(this)
-		val depositArticles = repository.getDepositArticles()
-		if (depositArticles.isEmpty()) {
-			Snackbar.make(findViewById(android.R.id.content), "Keine Pfandkonfiguration vorhanden.", Snackbar.LENGTH_LONG).show()
-			return
-		}
+		val depositTypes = DepositReturnType.entries.toTypedArray()
+		val labels = depositTypes.map { it.displayName }.toTypedArray()
 
-		val uniqueByType = linkedMapOf<String, com.speckdealer.app.data.ArticleEntity>()
-		depositArticles.forEach { article ->
-			val type = repository.resolveDepositType(article)
-			if (type != "unknown" && !uniqueByType.containsKey(type)) {
-				uniqueByType[type] = article
-			}
-		}
-		if (uniqueByType.isEmpty()) {
-			Snackbar.make(findViewById(android.R.id.content), "Pfandarten konnten nicht bestimmt werden.", Snackbar.LENGTH_LONG).show()
-			return
-		}
-
-		val options = uniqueByType.entries.toList()
 		AlertDialog.Builder(this)
 			.setTitle("Pfandrückgabe")
-			.setMessage("Welcher Pfand wird zurückgegeben?")
-			.setItems(options.map { (_, article) -> article.name }.toTypedArray()) { _, which ->
-				val selected = options[which]
-				showDepositQuantityDialog(selected.key, selected.value.name, selected.value.priceCents.toLong(), depositStorage)
+			.setMessage("Welcher Pfand soll zurückgegeben werden?")
+			.setItems(labels) { _, selectedIndex ->
+				val selectedType = depositTypes[selectedIndex]
+				val unitAmountCents = resolveConfiguredDepositAmountCents(repository, selectedType)
+				if (unitAmountCents == null) {
+					Snackbar.make(findViewById(android.R.id.content), selectedType.missingAmountMessage, Snackbar.LENGTH_LONG).show()
+					return@setItems
+				}
+				showDepositQuantityDialog(selectedType, unitAmountCents, depositStorage)
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
 	}
 
+	private fun resolveConfiguredDepositAmountCents(
+		repository: com.speckdealer.app.data.ArticleRepository,
+		type: DepositReturnType
+	): Long? {
+		type.amountLookupTokens.forEach { token ->
+			val article = repository.getDepositArticleForType(token)
+			if (article != null && article.priceCents > 0) {
+				return article.priceCents.toLong()
+			}
+		}
+
+		val fallback = repository.getDepositArticles().firstOrNull { article ->
+			val resolvedType = repository.resolveDepositType(article)
+			article.priceCents > 0 && type.amountLookupTokens.any { token ->
+				token.equals(resolvedType, ignoreCase = true) || article.name.contains(token, ignoreCase = true)
+			}
+		}
+		return fallback?.priceCents?.toLong()
+	}
+
 	private fun showDepositQuantityDialog(
-		depositType: String,
-		displayName: String,
+		selectedType: DepositReturnType,
 		unitAmountCents: Long,
 		depositStorage: DepositMovementStorage
 	) {
 		if (unitAmountCents <= 0L) {
-			Snackbar.make(findViewById(android.R.id.content), "Ungültiger Pfandbetrag konfiguriert.", Snackbar.LENGTH_LONG).show()
+			Snackbar.make(findViewById(android.R.id.content), selectedType.missingAmountMessage, Snackbar.LENGTH_LONG).show()
 			return
 		}
 		val input = EditText(this).apply {
@@ -277,7 +311,7 @@ class MainActivity : AppCompatActivity() {
 		}
 		AlertDialog.Builder(this)
 			.setTitle("Pfandrückgabe")
-			.setMessage("Pfandart: $displayName\nEinzelbetrag: ${MoneyValueService.formatCents(unitAmountCents)}")
+			.setMessage("Pfandart: ${selectedType.displayName}\nEinzelbetrag: ${MoneyValueService.formatCents(unitAmountCents)}")
 			.setView(input)
 			.setPositiveButton("Weiter") { _, _ ->
 				val quantityText = input.text?.toString()?.trim().orEmpty()
@@ -287,22 +321,21 @@ class MainActivity : AppCompatActivity() {
 					return@setPositiveButton
 				}
 				val total = unitAmountCents * quantity.toLong()
-				showDepositReturnConfirmation(depositType, displayName, quantity, unitAmountCents, total, depositStorage)
+				showDepositReturnConfirmation(selectedType, quantity, unitAmountCents, total, depositStorage)
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
 	}
 
 	private fun showDepositReturnConfirmation(
-		depositType: String,
-		displayName: String,
+		selectedType: DepositReturnType,
 		quantity: Int,
 		unitAmountCents: Long,
 		totalAmountCents: Long,
 		depositStorage: DepositMovementStorage
 	) {
 		val summary = buildString {
-			appendLine("Pfandart: $displayName")
+			appendLine("Pfandart: ${selectedType.displayName}")
 			appendLine("Anzahl: $quantity")
 			appendLine("Einzelbetrag: ${MoneyValueService.formatCents(unitAmountCents)}")
 			append("Gesamter Rückgabebetrag: ${MoneyValueService.formatCents(totalAmountCents)}")
@@ -317,7 +350,8 @@ class MainActivity : AppCompatActivity() {
 					depositStorage.appendMovement(
 						DepositMovement(
 							transactionId = UUID.randomUUID().toString(),
-							depositType = depositType,
+							depositType = selectedType.storageValue,
+							displayName = selectedType.displayName,
 							quantity = quantity,
 							unitAmountCents = unitAmountCents,
 							totalAmountCents = totalAmountCents,

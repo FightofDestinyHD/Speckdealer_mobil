@@ -65,7 +65,8 @@ class DailyReportBuilderTest {
 		val returns = listOf(
 			DepositMovement(
 				transactionId = "d1",
-				depositType = "glass_01",
+				depositType = "GLASS",
+				displayName = "Glas",
 				quantity = 2,
 				unitAmountCents = 100,
 				totalAmountCents = 200,

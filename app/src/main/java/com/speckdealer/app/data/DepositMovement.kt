@@ -18,6 +18,7 @@ data class DepositMovement(
 	val id: String = UUID.randomUUID().toString(),
 	val transactionId: String,
 	val depositType: String,
+	val displayName: String,
 	val quantity: Int,
 	val unitAmountCents: Long,
 	val totalAmountCents: Long,
@@ -27,6 +28,7 @@ data class DepositMovement(
 	init {
 		require(transactionId.isNotBlank()) { "transactionId darf nicht leer sein" }
 		require(depositType.isNotBlank()) { "depositType darf nicht leer sein" }
+		require(displayName.isNotBlank()) { "displayName darf nicht leer sein" }
 		require(quantity > 0) { "quantity muss > 0 sein" }
 		require(unitAmountCents > 0L) { "unitAmountCents muss > 0 sein" }
 		require(totalAmountCents > 0L) { "totalAmountCents muss > 0 sein" }
@@ -36,6 +38,7 @@ data class DepositMovement(
 		put("id", id)
 		put("transactionId", transactionId)
 		put("depositType", depositType)
+		put("displayName", displayName)
 		put("quantity", quantity)
 		put("unitAmountCents", unitAmountCents)
 		put("totalAmountCents", totalAmountCents)
@@ -48,16 +51,28 @@ data class DepositMovement(
 			val quantity = json.optInt("quantity", 0)
 			val unitAmountCents = json.optLong("unitAmountCents", 0L)
 			val totalAmountCents = json.optLong("totalAmountCents", 0L)
+			val depositType = json.optString("depositType", "")
+			val displayName = json.optString("displayName", defaultDisplayName(depositType))
 			return DepositMovement(
 				id = json.optString("id", UUID.randomUUID().toString()),
 				transactionId = json.optString("transactionId", ""),
-				depositType = json.optString("depositType", ""),
+				depositType = depositType,
+				displayName = displayName,
 				quantity = quantity,
 				unitAmountCents = unitAmountCents,
 				totalAmountCents = if (totalAmountCents > 0L) totalAmountCents else quantity.toLong() * unitAmountCents,
 				movementType = DepositMovementType.fromStorage(json.optString("movementType", DepositMovementType.RETURNED.name)),
 				timestampMs = json.optLong("timestampMs", System.currentTimeMillis())
 			)
+		}
+
+		private fun defaultDisplayName(depositType: String): String {
+			return when (depositType.trim().uppercase()) {
+				"BOTTLE", "FLASCHE" -> "Flasche"
+				"GLASS", "GLAS", "GLAS_01", "GLAS_02", "GLASS_01", "GLASS_02" -> "Glas"
+				"PLATE", "TELLER" -> "Teller"
+				else -> depositType.ifBlank { "Pfand" }
+			}
 		}
 	}
 }
