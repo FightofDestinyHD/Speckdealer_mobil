@@ -102,7 +102,8 @@ class MainActivity : AppCompatActivity() {
 			val ordersTile = findViewById<View?>(R.id.ordersTile)
 			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
 			val dailyReportTile = findViewById<View?>(R.id.dailyReportTile)
-			val depositReturnTile = findViewById<View?>(R.id.depositReturnTile)
+			val settingsTile = findViewById<View?>(R.id.settingsTile)
+			val depositReturnTile = findViewById<View>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
 
 			if (salesTile == null) {
@@ -111,8 +112,8 @@ class MainActivity : AppCompatActivity() {
 			if (articleManagementTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: articleManagementTile fehlt im Layout")
 			}
-			if (depositReturnTile == null) {
-				StartupCrashLogger.logEvent(this, "setupMenuTiles: depositReturnTile fehlt im Layout")
+			if (settingsTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: settingsTile fehlt im Layout")
 			}
 			if (updateTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: updateTile fehlt im Layout")
@@ -157,7 +158,17 @@ class MainActivity : AppCompatActivity() {
 				}
 			}
 
-			depositReturnTile?.setOnClickListener {
+			settingsTile?.setOnClickListener {
+				try {
+					startActivity(Intent(this, ArticleManagementActivity::class.java))
+				} catch (e: Exception) {
+					StartupCrashLogger.logEvent(this, "SettingsTile öffnen Fehler", e)
+					e.printStackTrace()
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
+				}
+			}
+
+			depositReturnTile.setOnClickListener {
 				openDepositReturn()
 			}
 

@@ -3,6 +3,8 @@
 	<string name="welcome">Willkommen</string>
 	<string name="tile_sales">Verkauf</string>
 	<string name="tile_item_maintenance">Artikel-&#10;pflege</string>
+	<string name="tile_settings">Einstellungen</string>
+	<string name="tile_deposit_return">Pfandrückgabe</string>
 	<string name="tile_archive">Archiv</string>
 	<string name="update_tile">Update</string>
 	<string name="update_tile_symbol">⟳
