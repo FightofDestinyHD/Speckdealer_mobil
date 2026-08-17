@@ -4,6 +4,7 @@ import com.speckdealer.app.data.CategoryType
 import com.speckdealer.app.data.DepositMovement
 import com.speckdealer.app.data.DepositMovementType
 import com.speckdealer.app.data.SaleRecord
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
@@ -11,7 +12,7 @@ import java.util.Locale
 class DailyReportBuilderTest {
 
 	@Test
-	fun buildsCorrectDailyReportSections_withTaxAndDepositSeparation() {
+	fun buildsVatAndDepositSections_withStrictSeparation() {
 		val records = listOf(
 			SaleRecord(
 				articleName = "Wein A",
@@ -77,14 +78,43 @@ class DailyReportBuilderTest {
 
 		val report = DailyReportBuilder.build(records, returns, Locale.GERMANY)
 
-		assertTrue(report.financeText.contains("Netto-Umsatz: 20,00"))
-		assertTrue(report.financeText.contains("Umsatzsteuer: 2,60"))
-		assertTrue(report.financeText.contains("Brutto-Umsatz ohne Pfand: 22,60"))
-		assertTrue(report.financeText.contains("Pfand erhalten: 3,00"))
-		assertTrue(report.financeText.contains("Pfand zurückgegeben: 2,00"))
-		assertTrue(report.financeText.contains("Pfand-Saldo: 1,00"))
-		assertTrue(report.financeText.contains("Getränke 19 %:"))
-		assertTrue(report.financeText.contains("Speisen 7 %:"))
+		assertTrue(report.summaryText.contains("Brutto-Umsatz ohne Pfand: 22,60"))
+		assertTrue(report.summaryText.contains("Mehrwertsteuer gesamt (MwSt.): 2,60"))
+		assertFalse(report.summaryText.contains("Umsatzsteuer"))
+		assertTrue(report.beverageVatText.contains("MwSt. 19 % Getränke: 1,90"))
+		assertTrue(report.foodVatText.contains("MwSt. 7 % Speisen: 0,70"))
+		assertTrue(report.depositSummaryText.contains("Pfand erhalten: 3,00"))
+		assertTrue(report.depositSummaryText.contains("Pfand zurückgegeben: 2,00"))
+		assertTrue(report.depositSummaryText.contains("Pfand-Saldo: 1,00"))
+		assertTrue(report.depositBreakdownText.contains("Flasche: 0,00"))
+		assertTrue(report.depositBreakdownText.contains("Glas: 2,00"))
+		assertTrue(report.depositBreakdownText.contains("Teller: 0,00"))
 		assertTrue(report.employeeText.contains("Cola: 1 Stück"))
+	}
+
+	@Test
+	fun marksUnclearOffersInsteadOfSilentlyMisclassifyingThem() {
+		val records = listOf(
+			SaleRecord(
+				articleName = "Angebot Spezial",
+				category = CategoryType.ANGEBOT.storageValue,
+				servingType = "STANDARD",
+				priceCents = 1500,
+				depositCents = 0,
+				isEmployee = false,
+				taxCategory = "",
+				taxRateBasisPoints = 0,
+				netAmountCents = 0,
+				taxAmountCents = 0,
+				grossAmountCents = 1500,
+				transactionId = "t4",
+				recordId = "r4",
+				timestampMs = 5
+			)
+		)
+
+		val report = DailyReportBuilder.build(records, emptyList(), Locale.GERMANY)
+
+		assertTrue(report.summaryText.contains("Nicht zugeordnete Angebote"))
 	}
 }

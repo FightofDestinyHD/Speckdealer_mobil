@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
 		GLASS(
 			storageValue = "GLASS",
 			displayName = "Glas",
-			amountLookupTokens = listOf("glas", "glass_01", "glass_02"),
+			amountLookupTokens = listOf("glas", "glass", "glass_01", "glass_02"),
 			missingAmountMessage = "Für Glaspfand ist aktuell kein Betrag konfiguriert. Bitte lege den Pfandbetrag in der Artikelverwaltung fest."
 		),
 		PLATE(
@@ -261,8 +261,7 @@ class MainActivity : AppCompatActivity() {
 		val labels = depositTypes.map { it.displayName }.toTypedArray()
 
 		AlertDialog.Builder(this)
-			.setTitle("Pfandrückgabe")
-			.setMessage("Welcher Pfand soll zurückgegeben werden?")
+			.setTitle("Welcher Pfand soll zurückgegeben werden?")
 			.setItems(labels) { _, selectedIndex ->
 				val selectedType = depositTypes[selectedIndex]
 				val unitAmountCents = resolveConfiguredDepositAmountCents(repository, selectedType)

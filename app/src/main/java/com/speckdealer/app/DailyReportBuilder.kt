@@ -1,6 +1,5 @@
 package com.speckdealer.app
 
-import com.speckdealer.app.data.CategoryType
 import com.speckdealer.app.data.DepositMovement
 import com.speckdealer.app.data.DepositMovementType
 import com.speckdealer.app.data.SaleRecord
@@ -8,175 +7,175 @@ import java.text.NumberFormat
 import java.util.Locale
 
 data class DailyReportData(
-	val financeText: String,
-	val glassesText: String,
-	val leergutText: String,
-	val softdrinksText: String,
-	val tellerText: String,
-	val employeeText: String
+	val summaryText: String,
+	val beverageVatText: String,
+	val foodVatText: String,
+	val salesDetailsText: String,
+	val employeeText: String,
+	val depositSummaryText: String,
+	val depositBreakdownText: String
 )
 
 object DailyReportBuilder {
+
+	private enum class TaxBucket {
+		BEVERAGE,
+		FOOD,
+		UNCLEAR_OFFER
+	}
+
 	fun build(
 		records: List<SaleRecord>,
 		depositMovements: List<DepositMovement> = emptyList(),
 		locale: Locale = Locale.GERMANY
 	): DailyReportData {
 		val currencyFmt = NumberFormat.getCurrencyInstance(locale)
+		fun formatEuro(cents: Long): String = currencyFmt.format(cents / 100.0)
 
 		val taxableSales = records.filter { !it.isEmployee }
-		val beverageSales = taxableSales.filter { it.taxCategory == TaxCategory.BEVERAGE.name }
-		val foodSales = taxableSales.filter { it.taxCategory == TaxCategory.FOOD.name }
+		val employeeSales = records.filter { it.isEmployee }
+
+		val beverageSales = mutableListOf<SaleRecord>()
+		val foodSales = mutableListOf<SaleRecord>()
+		val unclearOfferSales = mutableListOf<SaleRecord>()
+
+		taxableSales.forEach { record ->
+			when (classifyTaxBucket(record)) {
+				TaxBucket.BEVERAGE -> beverageSales.add(record)
+				TaxBucket.FOOD -> foodSales.add(record)
+				TaxBucket.UNCLEAR_OFFER -> unclearOfferSales.add(record)
+				null -> Unit
+			}
+		}
 
 		val beverageNet = beverageSales.sumOf { it.netAmountCents.toLong() }
-		val beverageTax = beverageSales.sumOf { it.taxAmountCents.toLong() }
+		val beverageVat = beverageSales.sumOf { it.taxAmountCents.toLong() }
 		val beverageGross = beverageSales.sumOf { it.grossAmountCents.toLong() }
 
 		val foodNet = foodSales.sumOf { it.netAmountCents.toLong() }
-		val foodTax = foodSales.sumOf { it.taxAmountCents.toLong() }
+		val foodVat = foodSales.sumOf { it.taxAmountCents.toLong() }
 		val foodGross = foodSales.sumOf { it.grossAmountCents.toLong() }
 
-		val depositReceived = taxableSales.sumOf { it.depositCents.toLong() }
-		val depositReturned = depositMovements
-			.filter { it.movementType == DepositMovementType.RETURNED }
-			.sumOf { it.totalAmountCents }
-		val depositBalance = depositReceived - depositReturned
-		val netRevenueWithoutDeposit = beverageNet + foodNet
-		val taxTotal = beverageTax + foodTax
-		val grossRevenueWithoutDeposit = beverageGross + foodGross
-		val revenueEmployee = records.count { it.isEmployee }
+		val totalNetKnown = beverageNet + foodNet
+		val totalVatKnown = beverageVat + foodVat
+		val totalGrossKnown = beverageGross + foodGross
+		val totalGrossAllTaxable = taxableSales.sumOf { it.grossAmountCents.toLong() }
+		val unclearOfferGross = unclearOfferSales.sumOf { it.grossAmountCents.toLong() }
 
-		val financeText = buildString {
-			appendLine("Umsatz Waren/Getränke ohne Pfand: ${currencyFmt.format(grossRevenueWithoutDeposit / 100.0)}")
-			appendLine("Netto-Umsatz: ${currencyFmt.format(netRevenueWithoutDeposit / 100.0)}")
-			appendLine("Umsatzsteuer: ${currencyFmt.format(taxTotal / 100.0)}")
-			appendLine("Brutto-Umsatz ohne Pfand: ${currencyFmt.format(grossRevenueWithoutDeposit / 100.0)}")
-			appendLine("Pfand erhalten: ${currencyFmt.format(depositReceived / 100.0)}")
-			appendLine("Pfand zurückgegeben: ${currencyFmt.format(depositReturned / 100.0)}")
-			appendLine("Pfand-Saldo: ${currencyFmt.format(depositBalance / 100.0)}")
-			appendLine("Auszahlungsbetrag Pfandrückgabe: ${currencyFmt.format(depositReturned / 100.0)}")
-			appendLine("Mitarbeiterverkäufe (kostenlos): $revenueEmployee Stück")
-			appendLine()
-			appendLine("Getränke 19 %:")
-			appendLine("  Netto: ${currencyFmt.format(beverageNet / 100.0)}")
-			appendLine("  Steuer: ${currencyFmt.format(beverageTax / 100.0)}")
-			appendLine("  Brutto: ${currencyFmt.format(beverageGross / 100.0)}")
-			appendLine("Speisen 7 %:")
-			appendLine("  Netto: ${currencyFmt.format(foodNet / 100.0)}")
-			appendLine("  Steuer: ${currencyFmt.format(foodTax / 100.0)}")
-			appendLine("  Brutto: ${currencyFmt.format(foodGross / 100.0)}")
+		val depositReceived = taxableSales.sumOf { it.depositCents.toLong() }
+		val returnedMovements = depositMovements.filter { it.movementType == DepositMovementType.RETURNED }
+		val depositReturned = returnedMovements.sumOf { it.totalAmountCents }
+		val depositBalance = depositReceived - depositReturned
+
+		val returnedBottle = returnedMovements
+			.filter { isBottleType(it.depositType, it.displayName) }
+			.sumOf { it.totalAmountCents }
+		val returnedGlass = returnedMovements
+			.filter { isGlassType(it.depositType, it.displayName) }
+			.sumOf { it.totalAmountCents }
+		val returnedPlate = returnedMovements
+			.filter { isPlateType(it.depositType, it.displayName) }
+			.sumOf { it.totalAmountCents }
+		val returnedOther = (depositReturned - returnedBottle - returnedGlass - returnedPlate).coerceAtLeast(0L)
+
+		val summaryText = buildString {
+			appendLine("Brutto-Umsatz ohne Pfand: ${formatEuro(totalGrossAllTaxable)}")
+			appendLine("Netto-Umsatz (MwSt.-pflichtig): ${formatEuro(totalNetKnown)}")
+			appendLine("Mehrwertsteuer gesamt (MwSt.): ${formatEuro(totalVatKnown)}")
+			appendLine("Brutto (Netto + MwSt.): ${formatEuro(totalGrossKnown)}")
+			if (unclearOfferSales.isNotEmpty()) {
+				append("Nicht zugeordnete Angebote (Steuerkategorie unklar): ${unclearOfferSales.size} · ${formatEuro(unclearOfferGross)}")
+			}
 		}.trimEnd()
 
-		val weinRecords = records.filter { it.category == CategoryType.WEIN.storageValue }
-		val glass01 = weinRecords.count { it.servingType == "GLASS_01" }
-		val glass02 = weinRecords.count { it.servingType == "GLASS_02" }
-		val glassValue = glass01 * 0.5 + glass02 * 1.0
-		val glassesText = buildString {
-			appendLine("Glas 0,1l (halbwertig): $glass01 Stück")
-			appendLine("Glas 0,2l (vollwertig): $glass02 Stück")
-			append("Gesamtwertigkeit: $glassValue Einheiten")
-		}
+		val beverageVatText = buildString {
+			appendLine("Netto-Umsatz Getränke: ${formatEuro(beverageNet)}")
+			appendLine("MwSt. 19 % Getränke: ${formatEuro(beverageVat)}")
+			append("Brutto-Umsatz Getränke: ${formatEuro(beverageGross)}")
+		}.trimEnd()
 
-		val allWeinNames = weinRecords.map { it.articleName }.distinct()
-		val leergutLines = mutableListOf<String>()
-		var leergutGesamt = 0
+		val foodVatText = buildString {
+			appendLine("Netto-Umsatz Speisen: ${formatEuro(foodNet)}")
+			appendLine("MwSt. 7 % Speisen: ${formatEuro(foodVat)}")
+			append("Brutto-Umsatz Speisen: ${formatEuro(foodGross)}")
+		}.trimEnd()
 
-		allWeinNames.forEach { name ->
-			val nameRecords = weinRecords.filter { it.articleName == name }
-			val mlGlaeser = nameRecords.count { it.servingType == "GLASS_01" } * 100 +
-				nameRecords.count { it.servingType == "GLASS_02" } * 200
-			val flaschenAusGlaesern = mlGlaeser / 750
-			val direktFlaschen = nameRecords.count { it.servingType == "BOTTLE" }
-			val gesamt = flaschenAusGlaesern + direktFlaschen
-			if (gesamt > 0) {
-				leergutLines.add(buildString {
-					append("$name: $gesamt Fl.")
-					if (direktFlaschen > 0 && flaschenAusGlaesern > 0) {
-						append("  (direkt: $direktFlaschen, aus Gläsern: $flaschenAusGlaesern)")
-					} else if (direktFlaschen > 0) {
-						append("  (direkt verkauft)")
-					} else {
-						append("  (aus Gläsern: ${mlGlaeser}ml)")
-					}
-				})
-				leergutGesamt += gesamt
-			}
-		}
+		val salesDetailsText = buildString {
+			appendLine("Wein: ${taxableSales.count { it.category.equals("WEIN", ignoreCase = true) }}")
+			appendLine("Softgetränke: ${taxableSales.count { it.category.equals("SOFTGETRAENKE", ignoreCase = true) }}")
+			appendLine("Snacks: ${taxableSales.count { it.category.equals("SNACKS", ignoreCase = true) }}")
+			appendLine("Käse: ${taxableSales.count { it.category.equals("KAESE", ignoreCase = true) }}")
+			appendLine("Speck: ${taxableSales.count { it.category.equals("SPECK", ignoreCase = true) }}")
+			append("Angebote: ${taxableSales.count { it.category.equals("ANGEBOT", ignoreCase = true) }}")
+		}.trimEnd()
 
-		val angebotFlaschen = records.filter {
-			it.category == CategoryType.ANGEBOT.storageValue &&
-				it.servingType == "BOTTLE" &&
-				it.articleName.endsWith("(Flasche)")
-		}
-		if (angebotFlaschen.isNotEmpty()) {
-			leergutLines.add("Angebote (Weinflaschen): ${angebotFlaschen.size} Fl.")
-			leergutGesamt += angebotFlaschen.size
-		}
-
-		val leergutText = if (leergutLines.isEmpty()) {
-			"Kein Leergut."
-		} else {
-			buildString {
-				leergutLines.forEach { appendLine(it) }
-				append("─────────────────")
-				appendLine()
-				append("Gesamt Leergut: $leergutGesamt Flaschen")
-			}
-		}
-
-		val softRecords = records.filter { it.category == CategoryType.SOFTGETRAENKE.storageValue }
-		val softByName = softRecords.groupBy { it.articleName }
-		val softText = if (softByName.isEmpty()) {
-			"Keine Softgetränke verkauft."
-		} else {
-			softByName.entries.joinToString("\n") { (name, list) ->
-				val empCount = list.count { it.isEmployee }
-				val mitDepCnt = list.count { !it.isEmployee && it.depositCents > 0 }
-				val ohneDepCnt = list.count { !it.isEmployee && it.depositCents == 0 }
-				buildString {
-					append("$name: ${list.size} Stück")
-					if (mitDepCnt > 0) append("  m.Pf: $mitDepCnt")
-					if (ohneDepCnt > 0) append("  o.Pf: $ohneDepCnt")
-					if (empCount > 0) append("  MA: $empCount")
-				}
-			}
-		}
-
-		val snackRecords = records.filter { it.category == CategoryType.SNACKS.storageValue }
-		val angebotRecords = records.filter { it.category == CategoryType.ANGEBOT.storageValue }
-		val tellerRecords = snackRecords + angebotRecords.filter { it.servingType != "BOTTLE" }
-		val tellerGross = tellerRecords.count { it.servingType.uppercase() == "GROSS" }
-		val tellerKlein = tellerRecords.count { it.servingType.uppercase() == "KLEIN" }
-		val tellerSonstige = tellerRecords.count {
-			it.servingType.uppercase() != "GROSS" && it.servingType.uppercase() != "KLEIN"
-		}
-		val tellerText = if (tellerRecords.isEmpty()) {
-			"Keine Teller verkauft."
-		} else {
-			buildString {
-				appendLine("Großer Teller: $tellerGross Stück")
-				append("Kleiner Teller: $tellerKlein Stück")
-				if (tellerSonstige > 0) append("\nSonstige (ohne Größe): $tellerSonstige Stück")
-			}
-		}
-
-		val empRecords = records.filter { it.isEmployee }
-		val empByName = empRecords.groupBy { it.articleName }
-		val employeeText = if (empByName.isEmpty()) {
+		val employeeByName = employeeSales.groupBy { it.articleName }
+		val employeeText = if (employeeByName.isEmpty()) {
 			"Keine Mitarbeiterverkäufe."
 		} else {
-			empByName.entries.joinToString("\n") { (name, list) ->
-				"$name: ${list.size} Stück"
-			}
+			employeeByName.entries.joinToString("\n") { (name, list) -> "$name: ${list.size} Stück" }
 		}
 
+		val depositSummaryText = buildString {
+			appendLine("Pfand erhalten: ${formatEuro(depositReceived)}")
+			appendLine("Pfand zurückgegeben: ${formatEuro(depositReturned)}")
+			append("Pfand-Saldo: ${formatEuro(depositBalance)}")
+		}.trimEnd()
+
+		val depositBreakdownText = buildString {
+			appendLine("Flasche: ${formatEuro(returnedBottle)}")
+			appendLine("Glas: ${formatEuro(returnedGlass)}")
+			appendLine("Teller: ${formatEuro(returnedPlate)}")
+			if (returnedOther > 0L) append("Sonstige: ${formatEuro(returnedOther)}")
+		}.trimEnd()
+
 		return DailyReportData(
-			financeText = financeText,
-			glassesText = glassesText,
-			leergutText = leergutText,
-			softdrinksText = softText,
-			tellerText = tellerText,
-			employeeText = employeeText
+			summaryText = summaryText,
+			beverageVatText = beverageVatText,
+			foodVatText = foodVatText,
+			salesDetailsText = salesDetailsText,
+			employeeText = employeeText,
+			depositSummaryText = depositSummaryText,
+			depositBreakdownText = depositBreakdownText
 		)
+	}
+
+	private fun classifyTaxBucket(record: SaleRecord): TaxBucket? {
+		val taxCategory = record.taxCategory.trim().uppercase()
+		if (taxCategory == TaxCategory.BEVERAGE.name) return TaxBucket.BEVERAGE
+		if (taxCategory == TaxCategory.FOOD.name) return TaxBucket.FOOD
+		if (taxCategory == TaxCategory.DEPOSIT.name) return null
+
+		val category = record.category.trim().uppercase()
+		return when (category) {
+			"WEIN", "SOFTGETRAENKE" -> TaxBucket.BEVERAGE
+			"SNACKS", "KAESE", "SPECK" -> TaxBucket.FOOD
+			"ANGEBOT" -> TaxBucket.UNCLEAR_OFFER
+			else -> null
+		}
+	}
+
+	private fun isBottleType(type: String, displayName: String): Boolean {
+		val normalizedType = type.trim().uppercase()
+		val normalizedName = displayName.trim().uppercase()
+		return normalizedType == "BOTTLE" || normalizedType == "FLASCHE" || normalizedName == "FLASCHE"
+	}
+
+	private fun isGlassType(type: String, displayName: String): Boolean {
+		val normalizedType = type.trim().uppercase()
+		val normalizedName = displayName.trim().uppercase()
+		return normalizedType == "GLASS" ||
+			normalizedType == "GLAS" ||
+			normalizedType == "GLASS_01" ||
+			normalizedType == "GLASS_02" ||
+			normalizedType == "GLAS_01" ||
+			normalizedType == "GLAS_02" ||
+			normalizedName == "GLAS"
+	}
+
+	private fun isPlateType(type: String, displayName: String): Boolean {
+		val normalizedType = type.trim().uppercase()
+		val normalizedName = displayName.trim().uppercase()
+		return normalizedType == "PLATE" || normalizedType == "TELLER" || normalizedName == "TELLER"
 	}
 }

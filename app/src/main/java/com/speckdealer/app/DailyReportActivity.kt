@@ -28,12 +28,13 @@ class DailyReportActivity : AppCompatActivity() {
 
 	private fun buildReport() {
 		val report = DailyReportBuilder.build(storage.loadAll(), depositStorage.loadAll())
-		findViewById<TextView>(R.id.reportFinanceText).text = report.financeText
-		findViewById<TextView>(R.id.reportGlassesText).text = report.glassesText
-		findViewById<TextView>(R.id.reportLeergutText).text = report.leergutText
-		findViewById<TextView>(R.id.reportSoftdrinksText).text = report.softdrinksText
-		findViewById<TextView>(R.id.reportTellerText).text = report.tellerText
+		findViewById<TextView>(R.id.reportSummaryText).text = report.summaryText
+		findViewById<TextView>(R.id.reportBeverageVatText).text = report.beverageVatText
+		findViewById<TextView>(R.id.reportFoodVatText).text = report.foodVatText
+		findViewById<TextView>(R.id.reportSalesDetailsText).text = report.salesDetailsText
 		findViewById<TextView>(R.id.reportEmployeeText).text = report.employeeText
+		findViewById<TextView>(R.id.reportDepositSummaryText).text = report.depositSummaryText
+		findViewById<TextView>(R.id.reportDepositBreakdownText).text = report.depositBreakdownText
 	}
 
 	private fun confirmReset() {
