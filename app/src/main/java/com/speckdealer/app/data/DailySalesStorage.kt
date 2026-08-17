@@ -13,18 +13,30 @@ class DailySalesStorage(context: Context) {
 
 	private val prefs: SharedPreferences =
 		context.getSharedPreferences("speckdealer_daily_sales", Context.MODE_PRIVATE)
+	private val lock = Any()
 
 	companion object {
 		private const val KEY_RECORDS = "sale_records"
 	}
 
 	fun appendRecords(records: List<SaleRecord>) {
-		val existing = loadAll().toMutableList()
-		existing.addAll(records)
-		saveAll(existing)
+		if (records.isEmpty()) return
+		synchronized(lock) {
+			val existing = loadAllLocked().toMutableList()
+			existing.addAll(records)
+			saveAllLocked(existing)
+		}
 	}
 
-	fun loadAll(): List<SaleRecord> {
+	fun loadAll(): List<SaleRecord> = synchronized(lock) { loadAllLocked() }
+
+	fun clearToday() {
+		synchronized(lock) {
+			prefs.edit().remove(KEY_RECORDS).commit()
+		}
+	}
+
+	private fun loadAllLocked(): List<SaleRecord> {
 		val json = prefs.getString(KEY_RECORDS, null) ?: return emptyList()
 		return try {
 			val arr = JSONArray(json)
@@ -34,13 +46,9 @@ class DailySalesStorage(context: Context) {
 		}
 	}
 
-	fun clearToday() {
-		prefs.edit().remove(KEY_RECORDS).apply()
-	}
-
-	private fun saveAll(records: List<SaleRecord>) {
+	private fun saveAllLocked(records: List<SaleRecord>) {
 		val arr = JSONArray()
 		records.forEach { arr.put(it.toJson()) }
-		prefs.edit().putString(KEY_RECORDS, arr.toString()).apply()
+		prefs.edit().putString(KEY_RECORDS, arr.toString()).commit()
 	}
 }
