@@ -12,6 +12,8 @@ data class SaleRecord(
 	val priceCents: Int,         // Getränkepreis (0 bei Mitarbeiter)
 	val depositCents: Int,       // Pfandbetrag (0 bei ohne Pfand oder Mitarbeiter)
 	val isEmployee: Boolean,     // true = Mitarbeiterverkauf
+	val checkoutId: String = "", // Gruppiert Positionen eines Checkout-Vorgangs
+	val originOrderId: String = "", // Referenz auf offene Bestellung (falls vorhanden)
 	val timestampMs: Long = System.currentTimeMillis()
 ) {
 	fun toJson(): JSONObject = JSONObject().apply {
@@ -21,6 +23,8 @@ data class SaleRecord(
 		put("priceCents", priceCents)
 		put("depositCents", depositCents)
 		put("isEmployee", isEmployee)
+		put("checkoutId", checkoutId)
+		put("originOrderId", originOrderId)
 		put("timestampMs", timestampMs)
 	}
 
@@ -32,6 +36,8 @@ data class SaleRecord(
 			priceCents   = json.optInt("priceCents", 0),
 			depositCents = json.optInt("depositCents", 0),
 			isEmployee   = json.optBoolean("isEmployee", false),
+			checkoutId   = json.optString("checkoutId", ""),
+			originOrderId = json.optString("originOrderId", ""),
 			timestampMs  = json.optLong("timestampMs", System.currentTimeMillis())
 		)
 	}
