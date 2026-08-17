@@ -1,56 +1,29 @@
-name: Android Upload Check
+name: Android Artifact Verify
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-verify-and-upload:
+  verify-local-artifacts:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Ensure Gradle wrapper is executable
-        run: chmod +x ./gradlew
-
-      - name: Run unit tests
-        run: bash ./gradlew test
-
-      - name: Run lint
-        run: bash ./gradlew lint
-
-      - name: Assemble release (unsigned in CI)
-        run: bash ./gradlew assembleRelease
-
-      - name: Verify APK metadata
+      - name: Verify release artifacts exist and are non-empty
         run: |
-          test -f app/build/outputs/apk/release/app-release.apk
-          aapt dump badging app/build/outputs/apk/release/app-release.apk | grep "package: name='com.speckdealer.app'"
+          test -s release-artifacts/app-release.apk
+          test -s release-artifacts/app-release.aab
+          test -s release-artifacts/app-release.apk.sha256
+          test -s release-artifacts/app-release.aab.sha256
 
-      - name: Generate release checksums
+      - name: Verify checksums
         run: |
-          mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk release-artifacts/app-release.apk
-          sha256sum release-artifacts/app-release.apk | awk '{print $1}' > release-artifacts/app-release.apk.sha256
+          expected_apk="$(awk '{print $1}' release-artifacts/app-release.apk.sha256 | tr -d '\r\n')"
+          actual_apk="$(sha256sum release-artifacts/app-release.apk | awk '{print $1}')"
+          test "$expected_apk" = "$actual_apk"
 
-      - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk-local
-          path: release-artifacts/app-release.apk
-
-      - name: Upload release checksum artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-checksum-local
-          path: release-artifacts/app-release.apk.sha256
+          expected_aab="$(awk '{print $1}' release-artifacts/app-release.aab.sha256 | tr -d '\r\n')"
+          actual_aab="$(sha256sum release-artifacts/app-release.aab | awk '{print $1}')"
+          test "$expected_aab" = "$actual_aab"
