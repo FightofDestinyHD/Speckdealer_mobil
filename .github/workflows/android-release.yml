@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Vorhandener Tag (z. B. v0.1.39)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -62,6 +67,7 @@ jobs:
       - name: Create GitHub Release from local artifacts
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref_name }}
           files: |
             release-artifacts/app-release.apk
             release-artifacts/app-release.aab
