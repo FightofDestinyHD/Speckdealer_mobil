@@ -19,6 +19,7 @@ data class OrderRecord(
 	// Angebot-Gläser (0 wenn kein Angebot)
 	val glaesser01: Int = 0,
 	val glaesser02: Int = 0,
+	val transactionId: String = "",
 	val timestampMs: Long = System.currentTimeMillis()
 ) {
 	/** Lesbare Zusammenfassung der Toppings/Sonderwünsche für die Bestellliste */
@@ -48,26 +49,28 @@ data class OrderRecord(
 		put("sonderwunsch", sonderwunsch)
 		put("glaesser01", glaesser01)
 		put("glaesser02", glaesser02)
+		put("transactionId", transactionId)
 		put("timestampMs", timestampMs)
 	}
 
 	companion object {
 		fun fromJson(obj: JSONObject): OrderRecord = OrderRecord(
-			id           = obj.optString("id", System.currentTimeMillis().toString()),
-			articleName  = obj.getString("articleName"),
-			sizeName     = obj.optString("sizeName", ""),
-			priceCents   = obj.optInt("priceCents", 0),
+			id = obj.optString("id", System.currentTimeMillis().toString()),
+			articleName = obj.getString("articleName"),
+			sizeName = obj.optString("sizeName", ""),
+			priceCents = obj.optInt("priceCents", 0),
 			depositCents = obj.optInt("depositCents", 0),
-			isEmployee   = obj.optBoolean("isEmployee", false),
-			gurken       = obj.optInt("gurken", 1),
-			tomaten      = obj.optInt("tomaten", 1),
-			zwiebeln     = obj.optInt("zwiebeln", 1),
-			oliven       = obj.optInt("oliven", 1),
-			brezeln      = obj.optInt("brezeln", 1),
+			isEmployee = obj.optBoolean("isEmployee", false),
+			gurken = obj.optInt("gurken", 1),
+			tomaten = obj.optInt("tomaten", 1),
+			zwiebeln = obj.optInt("zwiebeln", 1),
+			oliven = obj.optInt("oliven", 1),
+			brezeln = obj.optInt("brezeln", 1),
 			sonderwunsch = obj.optString("sonderwunsch", ""),
-			glaesser01   = obj.optInt("glaesser01", 0),
-			glaesser02   = obj.optInt("glaesser02", 0),
-			timestampMs  = obj.optLong("timestampMs", System.currentTimeMillis())
+			glaesser01 = obj.optInt("glaesser01", 0),
+			glaesser02 = obj.optInt("glaesser02", 0),
+			transactionId = obj.optString("transactionId", ""),
+			timestampMs = obj.optLong("timestampMs", System.currentTimeMillis())
 		)
 	}
 }

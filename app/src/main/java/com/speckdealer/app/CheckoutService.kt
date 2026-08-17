@@ -43,11 +43,19 @@ data class CheckoutResult(
 )
 
 class CheckoutService(
-	private val dailySalesStorage: DailySalesStorage,
-	private val orderStorage: OrderStorage
+	private val appendSales: (List<SaleRecord>) -> Unit,
+	private val appendOrders: (List<OrderRecord>) -> Unit
 ) {
+	constructor(
+		dailySalesStorage: DailySalesStorage,
+		orderStorage: OrderStorage
+	) : this(
+		appendSales = { dailySalesStorage.appendRecords(it) },
+		appendOrders = { orderStorage.addAll(it) }
+	)
 	fun checkout(drafts: List<SaleDraftEntry>, finalTotalCents: Long): CheckoutResult {
 		val checkoutId = UUID.randomUUID().toString()
+		val transactionId = UUID.randomUUID().toString()
 		val total = finalTotalCents.coerceAtLeast(0L)
 
 		val sales = mutableListOf<SaleRecord>()
@@ -65,7 +73,9 @@ class CheckoutService(
 				priceCents = adjustedPrice,
 				depositCents = draft.depositCents,
 				isEmployee = draft.isEmployee,
-				checkoutId = checkoutId
+				checkoutId = checkoutId,
+				transactionId = transactionId,
+				recordId = UUID.randomUUID().toString()
 			)
 
 			if (draft.createBottleHelperRecord && draft.category == CategoryType.ANGEBOT.storageValue) {
@@ -76,7 +86,9 @@ class CheckoutService(
 					priceCents = 0,
 					depositCents = 0,
 					isEmployee = draft.isEmployee,
-					checkoutId = checkoutId
+					checkoutId = checkoutId,
+					transactionId = transactionId,
+					recordId = UUID.randomUUID().toString()
 				)
 			}
 
@@ -96,13 +108,14 @@ class CheckoutService(
 					brezeln = order.brezeln,
 					sonderwunsch = order.sonderwunsch,
 					glaesser01 = order.glaesser01,
-					glaesser02 = order.glaesser02
+					glaesser02 = order.glaesser02,
+					transactionId = transactionId
 				)
 			}
 		}
 
-		dailySalesStorage.appendRecords(sales)
-		orderStorage.addAll(orders)
+		appendSales(sales)
+		appendOrders(orders)
 
 		return CheckoutResult(
 			checkoutId = checkoutId,

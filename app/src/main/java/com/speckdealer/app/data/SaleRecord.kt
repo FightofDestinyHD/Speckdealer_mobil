@@ -14,6 +14,8 @@ data class SaleRecord(
 	val isEmployee: Boolean,     // true = Mitarbeiterverkauf
 	val checkoutId: String = "", // Gruppiert Positionen eines Checkout-Vorgangs
 	val originOrderId: String = "", // Referenz auf offene Bestellung (falls vorhanden)
+	val transactionId: String = "",
+	val recordId: String = "",
 	val timestampMs: Long = System.currentTimeMillis()
 ) {
 	fun toJson(): JSONObject = JSONObject().apply {
@@ -25,20 +27,41 @@ data class SaleRecord(
 		put("isEmployee", isEmployee)
 		put("checkoutId", checkoutId)
 		put("originOrderId", originOrderId)
+		put("transactionId", transactionId)
+		put("recordId", recordId)
 		put("timestampMs", timestampMs)
 	}
 
 	companion object {
-		fun fromJson(json: JSONObject) = SaleRecord(
-			articleName  = json.optString("articleName", ""),
-			category     = json.optString("category", ""),
-			servingType  = json.optString("servingType", "STANDARD"),
-			priceCents   = json.optInt("priceCents", 0),
-			depositCents = json.optInt("depositCents", 0),
-			isEmployee   = json.optBoolean("isEmployee", false),
-			checkoutId   = json.optString("checkoutId", ""),
-			originOrderId = json.optString("originOrderId", ""),
-			timestampMs  = json.optLong("timestampMs", System.currentTimeMillis())
-		)
+		fun fromJson(json: JSONObject): SaleRecord {
+			val checkoutId = json.optString("checkoutId", "")
+			val transactionId = json.optString("transactionId", checkoutId)
+			val recordId = json.optString("recordId", buildLegacyRecordId(json))
+			return SaleRecord(
+				articleName = json.optString("articleName", ""),
+				category = json.optString("category", ""),
+				servingType = json.optString("servingType", "STANDARD"),
+				priceCents = json.optInt("priceCents", 0),
+				depositCents = json.optInt("depositCents", 0),
+				isEmployee = json.optBoolean("isEmployee", false),
+				checkoutId = checkoutId,
+				originOrderId = json.optString("originOrderId", ""),
+				transactionId = transactionId,
+				recordId = recordId,
+				timestampMs = json.optLong("timestampMs", System.currentTimeMillis())
+			)
+		}
+
+		private fun buildLegacyRecordId(json: JSONObject): String {
+			return listOf(
+				json.optString("checkoutId", ""),
+				json.optString("originOrderId", ""),
+				json.optString("articleName", ""),
+				json.optString("servingType", "STANDARD"),
+				json.optInt("priceCents", 0).toString(),
+				json.optInt("depositCents", 0).toString(),
+				json.optLong("timestampMs", 0L).toString()
+			).joinToString("|")
+		}
 	}
 }

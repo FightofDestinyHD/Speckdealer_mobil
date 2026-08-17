@@ -54,6 +54,9 @@ class SalesActivity : AppCompatActivity() {
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.GERMANY)
 	private val cartItems = mutableListOf<CartEntry>()
+	private lateinit var cartClearButton: Button
+	private lateinit var cartCheckoutButton: Button
+	private var operationState: UiOperationState = UiOperationState.Idle
 	@Volatile
 	private var checkoutInProgress = false
 
@@ -61,7 +64,8 @@ class SalesActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_sales)
 
-		try {
+		updateOperationState(UiOperationState.Loading)
+		runCatching {
 			repository = AppGraph.repository(this)
 			checkoutService = CheckoutService(
 				dailySalesStorage = DailySalesStorage(this),
@@ -73,8 +77,10 @@ class SalesActivity : AppCompatActivity() {
 			setupCartRecyclerView()
 			setupCartButtons()
 			setupTabs()
-		} catch (e: Exception) {
-			e.printStackTrace()
+		}.onSuccess {
+			updateOperationState(UiOperationState.Idle)
+		}.onFailure {
+			updateOperationState(UiOperationState.Error("Verkaufsansicht konnte nicht geladen werden"))
 		}
 	}
 
@@ -102,11 +108,14 @@ class SalesActivity : AppCompatActivity() {
 	}
 
 	private fun setupCartButtons() {
-		findViewById<Button>(R.id.cartClearButton).setOnClickListener {
+		cartClearButton = findViewById(R.id.cartClearButton)
+		cartCheckoutButton = findViewById(R.id.cartCheckoutButton)
+		cartClearButton.setOnClickListener {
+			if (checkoutInProgress) return@setOnClickListener
 			cartItems.clear()
 			updateCart()
 		}
-		findViewById<Button>(R.id.cartCheckoutButton).setOnClickListener {
+		cartCheckoutButton.setOnClickListener {
 			if (cartItems.isEmpty() || checkoutInProgress) return@setOnClickListener
 			showPriceAdjustmentDialog()
 		}
@@ -174,6 +183,7 @@ class SalesActivity : AppCompatActivity() {
 				}
 
 				checkoutInProgress = true
+				updateOperationState(UiOperationState.Saving)
 				val changeCents = givenCents - finalTotalCents
 				val drafts = cartItems.map { entry ->
 					SaleDraftEntry(
@@ -189,17 +199,19 @@ class SalesActivity : AppCompatActivity() {
 						orderDraft = entry.orderDraft
 					)
 				}
-				lifecycleScope.launch(Dispatchers.IO) {
-					try {
-						checkoutService.checkout(drafts, finalTotalCents)
-						withContext(Dispatchers.Main) {
+				lifecycleScope.launch {
+					when (val result = persistCheckout(drafts, finalTotalCents)) {
+						is OperationResult.Success -> {
 							cartItems.clear()
 							updateCart()
+							updateOperationState(UiOperationState.Success("Kassiervorgang gespeichert"))
 							showChangeDialog(changeCents)
 						}
-					} finally {
-						checkoutInProgress = false
+						is OperationResult.Error -> {
+							updateOperationState(UiOperationState.Error(result.message))
+						}
 					}
+					checkoutInProgress = false
 				}
 			}
 			.setNegativeButton("Abbrechen", null)
@@ -252,6 +264,10 @@ class SalesActivity : AppCompatActivity() {
 		cartAdapter.submitList(cartItems.toList())
 		val total = cartItems.sumOf { it.totalCents }
 		cartTotalText.text = "Gesamt: ${currencyFormatter.format(total / 100.0)}"
+		if (::cartCheckoutButton.isInitialized) {
+			val isSaving = operationState is UiOperationState.Saving
+			cartCheckoutButton.isEnabled = cartItems.isNotEmpty() && !isSaving
+		}
 	}
 
 	private fun setupTabs() {
@@ -275,7 +291,7 @@ class SalesActivity : AppCompatActivity() {
 				tabLayout.getTabAt(0)?.select()
 			}
 		} catch (e: Exception) {
-			e.printStackTrace()
+			updateOperationState(UiOperationState.Error("Kategorien konnten nicht geladen werden"))
 		}
 	}
 
@@ -300,7 +316,7 @@ class SalesActivity : AppCompatActivity() {
 					}
 				}
 			} catch (e: Exception) {
-				e.printStackTrace()
+				updateOperationState(UiOperationState.Error("Artikel konnten nicht geladen werden"))
 			}
 		}
 	}
@@ -736,37 +752,114 @@ class SalesActivity : AppCompatActivity() {
 		isEmployee: Boolean = false,
 		servingTypeStr: String = "STANDARD"
 	) {
-		lifecycleScope.launch(Dispatchers.IO) {
-			try {
+		lifecycleScope.launch {
+			updateOperationState(UiOperationState.Loading)
+			when (val result = buildCartEntry(
+				article = article,
+				displayName = displayName,
+				applyDeposit = applyDeposit,
+				depositTypeToken = depositTypeToken,
+				customPriceCents = customPriceCents,
+				isEmployee = isEmployee,
+				servingTypeStr = servingTypeStr
+			)) {
+				is OperationResult.Success -> {
+					addToCart(result.value)
+					updateOperationState(UiOperationState.Idle)
+				}
+				is OperationResult.Error -> {
+					updateOperationState(UiOperationState.Error(result.message))
+				}
+			}
+		}
+	}
+
+	private suspend fun persistCheckout(
+		drafts: List<SaleDraftEntry>,
+		finalTotalCents: Long
+	): OperationResult<Unit> {
+		return withContext(Dispatchers.IO) {
+			runCatching {
+				checkoutService.checkout(drafts, finalTotalCents)
+			}.fold(
+				onSuccess = { OperationResult.Success(Unit) },
+				onFailure = {
+					OperationResult.Error(
+						message = "Speichern fehlgeschlagen. Bitte erneut kassieren.",
+						cause = it
+					)
+				}
+			)
+		}
+	}
+
+	private suspend fun buildCartEntry(
+		article: ArticleEntity,
+		displayName: String,
+		applyDeposit: Boolean,
+		depositTypeToken: String?,
+		customPriceCents: Int,
+		isEmployee: Boolean,
+		servingTypeStr: String
+	): OperationResult<CartEntry> {
+		return withContext(Dispatchers.IO) {
+			runCatching {
 				val depositArticle = if (!isEmployee && applyDeposit && !depositTypeToken.isNullOrBlank()) {
 					repository.getDepositArticleForType(depositTypeToken)
 				} else null
-
 				val depositCents = depositArticle?.priceCents ?: 0
-				val drinkPrice   = if (isEmployee) 0 else customPriceCents
-				val totalCents   = drinkPrice + depositCents
-
+				val drinkPrice = if (isEmployee) 0 else customPriceCents
+				val totalCents = drinkPrice + depositCents
 				val entryName = buildString {
 					append(displayName)
 					if (depositArticle != null) append(" + ${depositArticle.name}")
 				}
-
-				withContext(Dispatchers.Main) {
-					addToCart(CartEntry(
-						displayName  = entryName,
-						totalCents   = totalCents,
-						articleName  = article.name,
-						category     = article.category,
-						servingType  = servingTypeStr,
-						priceCents   = drinkPrice,
-						depositCents = depositCents,
-						isEmployee   = isEmployee
-					))
+				CartEntry(
+					displayName = entryName,
+					totalCents = totalCents,
+					articleName = article.name,
+					category = article.category,
+					servingType = servingTypeStr,
+					priceCents = drinkPrice,
+					depositCents = depositCents,
+					isEmployee = isEmployee
+				)
+			}.fold(
+				onSuccess = { OperationResult.Success(it) },
+				onFailure = {
+					OperationResult.Error(
+						message = "Artikel konnte nicht in den Warenkorb übernommen werden.",
+						cause = it
+					)
 				}
-			} catch (e: Exception) {
-				e.printStackTrace()
-			}
+			)
 		}
+	}
+
+	private fun updateOperationState(state: UiOperationState) {
+		operationState = state
+		renderOperationState(state)
+	}
+
+	private fun renderOperationState(state: UiOperationState) {
+		if (::cartClearButton.isInitialized && ::cartCheckoutButton.isInitialized) {
+			val blockButtons = state is UiOperationState.Saving
+			cartClearButton.isEnabled = !blockButtons
+			cartCheckoutButton.isEnabled = !blockButtons && cartItems.isNotEmpty()
+		}
+		when (state) {
+			is UiOperationState.Success -> showStateDialog("Erfolg", state.message)
+			is UiOperationState.Error -> showStateDialog("Fehler", state.message)
+			else -> Unit
+		}
+	}
+
+	private fun showStateDialog(title: String, message: String) {
+		AlertDialog.Builder(this)
+			.setTitle(title)
+			.setMessage(message)
+			.setPositiveButton("OK", null)
+			.show()
 	}
 
 	private enum class WineServingType(val label: String, val requiresGlassDepositChoice: Boolean) {

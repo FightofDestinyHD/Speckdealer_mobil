@@ -59,6 +59,9 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var hasSmallCheckbox: CheckBox
 	private lateinit var largePriceInput: EditText
 	private lateinit var smallPriceInput: EditText
+	private lateinit var saveArticleButton: Button
+	private lateinit var clearArticleButton: Button
+	private var operationState: UiOperationState = UiOperationState.Idle
 
 	private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 		if (uri != null) {
@@ -78,16 +81,18 @@ class ArticleManagementActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_article_management)
 
-		try {
+		updateOperationState(UiOperationState.Loading)
+		runCatching {
 			repository = AppGraph.repository(this)
 			setupViews()
 			setupRecyclerView()
 			setupCategoryButtons()
 			setupFormActions()
 			selectCategory(CategoryType.WEIN)
-		} catch (e: Exception) {
-			e.printStackTrace()
-			Snackbar.make(findViewById(android.R.id.content), "Fehler beim Laden: ${e.message}", Snackbar.LENGTH_LONG).show()
+		}.onSuccess {
+			updateOperationState(UiOperationState.Idle)
+		}.onFailure { error ->
+			updateOperationState(UiOperationState.Error("Fehler beim Laden: ${error.localizedMessage ?: "unbekannt"}"))
 		}
 	}
 
@@ -113,6 +118,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 		hasSmallCheckbox = findViewById(R.id.hasSmallCheckbox)
 		largePriceInput = findViewById(R.id.largePriceInput)
 		smallPriceInput = findViewById(R.id.smallPriceInput)
+		saveArticleButton = findViewById(R.id.saveArticleButton)
+		clearArticleButton = findViewById(R.id.clearArticleButton)
 	}
 
 	private fun setupRecyclerView() {
@@ -148,8 +155,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 		}
 
 		selectImageButton.setOnClickListener { imagePicker.launch("image/*") }
-		findViewById<Button>(R.id.saveArticleButton).setOnClickListener { saveArticle() }
-		findViewById<Button>(R.id.clearArticleButton).setOnClickListener { clearForm() }
+		saveArticleButton.setOnClickListener { saveArticle() }
+		clearArticleButton.setOnClickListener { clearForm() }
 	}
 
 	private fun selectCategory(categoryType: CategoryType) {
@@ -168,7 +175,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 					adapter.submitList(articles)
 				}
 			} catch (e: Exception) {
-				e.printStackTrace()
+				updateOperationState(UiOperationState.Error("Artikel konnten nicht geladen werden"))
 			}
 		}
 	}
@@ -276,21 +283,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 		)
 		idToEdit?.let { article.id = it }
 
-		lifecycleScope.launch(Dispatchers.IO) {
-			try {
-				if (idToEdit == null) {
-					repository.saveArticle(article)
-				} else {
-					repository.updateArticle(article)
-				}
-				launch(Dispatchers.Main) {
-					showMessage("Artikel gespeichert")
+		lifecycleScope.launch {
+			updateOperationState(UiOperationState.Saving)
+			when (val result = persistArticle(article, idToEdit)) {
+				is OperationResult.Success -> {
 					clearForm()
+					updateOperationState(UiOperationState.Success("Artikel gespeichert"))
 				}
-			} catch (e: Exception) {
-				e.printStackTrace()
-				launch(Dispatchers.Main) {
-					showMessage("Fehler: ${e.localizedMessage}")
+				is OperationResult.Error -> {
+					updateOperationState(UiOperationState.Error(result.message))
 				}
 			}
 		}
@@ -343,21 +344,76 @@ class ArticleManagementActivity : AppCompatActivity() {
 			.setTitle("Artikel löschen")
 			.setMessage("\"${article.name}\" wirklich löschen?")
 			.setPositiveButton("Löschen") { _, _ ->
-				lifecycleScope.launch(Dispatchers.IO) {
-					try {
-						repository.deleteArticle(article)
-						launch(Dispatchers.Main) {
+				lifecycleScope.launch {
+					updateOperationState(UiOperationState.Saving)
+					when (val result = deleteArticle(article)) {
+						is OperationResult.Success -> {
 							if (editingArticleId == article.id) clearForm()
-							showMessage("\"${article.name}\" gelöscht")
+							updateOperationState(UiOperationState.Success("\"${article.name}\" gelöscht"))
 						}
-					} catch (e: Exception) {
-						e.printStackTrace()
-						launch(Dispatchers.Main) { showMessage("Fehler beim Löschen: ${e.localizedMessage}") }
+						is OperationResult.Error -> {
+							updateOperationState(UiOperationState.Error(result.message))
+						}
 					}
 				}
 			}
 			.setNegativeButton("Abbrechen", null)
 			.show()
+	}
+
+	private suspend fun persistArticle(article: ArticleEntity, idToEdit: Long?): OperationResult<Unit> {
+		return withContext(Dispatchers.IO) {
+			runCatching {
+				if (idToEdit == null) {
+					repository.saveArticle(article)
+				} else {
+					repository.updateArticle(article)
+				}
+			}.fold(
+				onSuccess = { OperationResult.Success(Unit) },
+				onFailure = {
+					OperationResult.Error(
+						message = "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+						cause = it
+					)
+				}
+			)
+		}
+	}
+
+	private suspend fun deleteArticle(article: ArticleEntity): OperationResult<Unit> {
+		return withContext(Dispatchers.IO) {
+			runCatching {
+				repository.deleteArticle(article)
+			}.fold(
+				onSuccess = { OperationResult.Success(Unit) },
+				onFailure = {
+					OperationResult.Error(
+						message = "Löschen fehlgeschlagen. Bitte erneut versuchen.",
+						cause = it
+					)
+				}
+			)
+		}
+	}
+
+	private fun updateOperationState(state: UiOperationState) {
+		operationState = state
+		renderOperationState(state)
+	}
+
+	private fun renderOperationState(state: UiOperationState) {
+		if (::saveArticleButton.isInitialized && ::clearArticleButton.isInitialized && ::selectImageButton.isInitialized) {
+			val isSaving = state is UiOperationState.Saving
+			saveArticleButton.isEnabled = !isSaving
+			clearArticleButton.isEnabled = !isSaving
+			selectImageButton.isEnabled = !isSaving
+		}
+		when (state) {
+			is UiOperationState.Success -> showMessage(state.message)
+			is UiOperationState.Error -> showMessage(state.message)
+			else -> Unit
+		}
 	}
 
 	private fun showMessage(message: String) {

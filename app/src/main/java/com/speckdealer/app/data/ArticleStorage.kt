@@ -6,11 +6,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
-import org.json.JSONObject
 
-class ArticleStorage(private val context: Context) {
+class ArticleStorage(context: Context) {
 
 	private val prefs: SharedPreferences = context.getSharedPreferences("speckdealer_articles", Context.MODE_PRIVATE)
+	private val store = SafeJsonArrayPreferencesStore(
+		prefs = prefs,
+		key = "articles",
+		lockName = "speckdealer_articles:articles"
+	)
+	private val lock = Any()
 	private val articlesFlow = MutableStateFlow<List<ArticleEntity>>(emptyList())
 
 	init {
@@ -18,30 +23,9 @@ class ArticleStorage(private val context: Context) {
 	}
 
 	private fun loadArticles() {
-		val json = prefs.getString("articles", "[]") ?: "[]"
-		try {
-			val articles = mutableListOf<ArticleEntity>()
-			val jsonArray = JSONArray(json)
-			for (i in 0 until jsonArray.length()) {
-				val obj = jsonArray.getJSONObject(i)
-				articles.add(ArticleEntity.fromJson(obj))
-			}
-			articlesFlow.value = articles.sortedBy { it.id }
-		} catch (e: Exception) {
-			e.printStackTrace()
-			articlesFlow.value = emptyList()
-		}
-	}
-
-	private fun saveArticles() {
-		try {
-			val jsonArray = JSONArray()
-			for (article in articlesFlow.value) {
-				jsonArray.put(article.toJson())
-			}
-			prefs.edit().putString("articles", jsonArray.toString()).apply()
-		} catch (e: Exception) {
-			e.printStackTrace()
+		synchronized(lock) {
+			val read = store.readArray()
+			articlesFlow.value = parseArticles(read.array)
 		}
 	}
 
@@ -70,42 +54,77 @@ class ArticleStorage(private val context: Context) {
 	}
 
 	fun saveArticle(article: ArticleEntity) {
-		try {
-			val current = articlesFlow.value.toMutableList()
-			// Auto-ID generieren wenn nicht vorhanden
-			if (article.id == 0L) {
-				article.id = (current.maxOfOrNull { it.id } ?: 0L) + 1
+		synchronized(lock) {
+			val (writeResult, persisted) = store.updateArray { currentArray ->
+				val current = parseArticles(currentArray).toMutableList()
+				if (article.id == 0L || current.any { it.id == article.id }) {
+					article.id = (current.maxOfOrNull { it.id } ?: 0L) + 1
+				}
+				current.add(article)
+				val normalized = normalize(current)
+				toJsonArray(normalized) to normalized
 			}
-			current.add(article)
-			articlesFlow.value = current
-			saveArticles()
-		} catch (e: Exception) {
-			e.printStackTrace()
+			if (!writeResult.success) {
+				throw IllegalStateException(writeResult.errorMessage ?: "Artikel konnten nicht gespeichert werden")
+			}
+			articlesFlow.value = persisted
 		}
 	}
 
 	fun updateArticle(article: ArticleEntity) {
-		try {
-			val current = articlesFlow.value.toMutableList()
-			val index = current.indexOfFirst { it.id == article.id }
-			if (index >= 0) {
-				current[index] = article
-				articlesFlow.value = current
-				saveArticles()
+		synchronized(lock) {
+			val (writeResult, persisted) = store.updateArray { currentArray ->
+				val current = parseArticles(currentArray).toMutableList()
+				val index = current.indexOfFirst { it.id == article.id }
+				if (index >= 0) {
+					current[index] = article
+				}
+				val normalized = normalize(current)
+				toJsonArray(normalized) to normalized
 			}
-		} catch (e: Exception) {
-			e.printStackTrace()
+			if (!writeResult.success) {
+				throw IllegalStateException(writeResult.errorMessage ?: "Artikel konnten nicht aktualisiert werden")
+			}
+			articlesFlow.value = persisted
 		}
 	}
 
 	fun deleteArticle(id: Long) {
-		try {
-			val current = articlesFlow.value.toMutableList()
-			current.removeAll { it.id == id }
-			articlesFlow.value = current
-			saveArticles()
-		} catch (e: Exception) {
-			e.printStackTrace()
+		synchronized(lock) {
+			val (writeResult, persisted) = store.updateArray { currentArray ->
+				val current = parseArticles(currentArray).filter { it.id != id }
+				val normalized = normalize(current)
+				toJsonArray(normalized) to normalized
+			}
+			if (!writeResult.success) {
+				throw IllegalStateException(writeResult.errorMessage ?: "Artikel konnten nicht gelöscht werden")
+			}
+			articlesFlow.value = persisted
 		}
+	}
+
+	private fun parseArticles(array: JSONArray): List<ArticleEntity> {
+		val parsed = mutableListOf<ArticleEntity>()
+		for (i in 0 until array.length()) {
+			val article = runCatching {
+				ArticleEntity.fromJson(array.getJSONObject(i))
+			}.getOrNull()
+			if (article != null) {
+				parsed.add(article)
+			}
+		}
+		return normalize(parsed)
+	}
+
+	private fun normalize(items: List<ArticleEntity>): List<ArticleEntity> {
+		return items
+			.distinctBy { it.id }
+			.sortedBy { it.id }
+	}
+
+	private fun toJsonArray(items: List<ArticleEntity>): JSONArray {
+		val arr = JSONArray()
+		items.forEach { arr.put(it.toJson()) }
+		return arr
 	}
 }
