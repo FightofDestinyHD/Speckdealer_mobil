@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:background="#CCFFFFFF"
+	android:padding="12dp"
+	android:layout_marginBottom="8dp">
+
+	<TextView
+		android:id="@+id/archiveItemDateText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textStyle="bold"
+		android:textSize="18sp" />
+
+	<TextView
+		android:id="@+id/archiveItemArchivedAtText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="14sp"
+		android:paddingTop="2dp" />
+
+	<TextView
+		android:id="@+id/archiveItemRevenueText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="15sp"
+		android:paddingTop="8dp" />
+
+	<TextView
+		android:id="@+id/archiveItemDepositText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="15sp"
+		android:paddingTop="2dp" />
+
+</LinearLayout>

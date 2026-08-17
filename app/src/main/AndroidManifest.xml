@@ -17,6 +17,8 @@
 		<activity android:name=".SalesActivity" />
 		<activity android:name=".ArticleManagementActivity" />
 		<activity android:name=".DailyReportActivity" />
+		<activity android:name=".ArchivedReportsActivity" />
+		<activity android:name=".ArchivedReportDetailActivity" />
 		<activity
 			android:name=".MainActivity"
 			android:exported="true">

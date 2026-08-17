@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:padding="16dp"
+	android:background="@drawable/app_background">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Archivierter Tagesabschluss"
+		android:textColor="#FFFFFF"
+		android:textStyle="bold"
+		android:textSize="24sp"
+		android:paddingBottom="10dp" />
+
+	<ScrollView
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:fillViewport="true">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
+
+			<TextView
+				android:id="@+id/archiveDetailHeaderText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:id="@+id/archiveDetailSummaryText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:id="@+id/archiveDetailDepositText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:id="@+id/archiveDetailArticlesText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:id="@+id/archiveDetailEmployeesText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:id="@+id/archiveDetailOrdersText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+		</LinearLayout>
+	</ScrollView>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:paddingTop="10dp">
+
+		<Button
+			android:id="@+id/archiveExportPdfButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginEnd="8dp"
+			android:backgroundTint="#1565C0"
+			android:text="Als PDF exportieren"
+			android:textColor="#FFFFFF" />
+
+		<Button
+			android:id="@+id/archiveDetailCloseButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:backgroundTint="#1B5E20"
+			android:text="Schließen"
+			android:textColor="#FFFFFF" />
+	</LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:padding="16dp"
+	android:background="@drawable/app_background">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Archivierte Tagesabschlüsse"
+		android:textColor="#FFFFFF"
+		android:textStyle="bold"
+		android:textSize="26sp"
+		android:paddingBottom="10dp" />
+
+	<TextView
+		android:id="@+id/archiveEmptyStateText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Noch keine archivierten Tagesabschlüsse vorhanden."
+		android:textColor="#FFFFFF"
+		android:textSize="18sp"
+		android:visibility="gone"
+		android:paddingBottom="10dp" />
+
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/archiveRecyclerView"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:clipToPadding="false"
+		android:paddingBottom="8dp" />
+
+	<Button
+		android:id="@+id/archiveCloseButton"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Schließen"
+		android:backgroundTint="#1B5E20"
+		android:textColor="#FFFFFF" />
+
+</LinearLayout>
