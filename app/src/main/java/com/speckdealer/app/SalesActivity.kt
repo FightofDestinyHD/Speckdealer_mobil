@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.speckdealer.app.data.DailySalesStorage
 import com.speckdealer.app.data.OrderStorage
+import com.speckdealer.app.data.CheckoutJournalStorage
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
@@ -39,6 +40,7 @@ data class CartEntry(
     val depositCents: Int = 0,
     val isEmployee: Boolean = false,
     val createBottleHelperRecord: Boolean = false,
+    val explicitOfferTaxCategory: TaxCategory? = null,
     val orderDraft: OrderDraftPayload? = null
 )
 
@@ -50,6 +52,7 @@ class SalesActivity : AppCompatActivity() {
 	private lateinit var cartTotalText: TextView
 	private lateinit var adapter: SalesArticleAdapter
 	private lateinit var cartAdapter: CartAdapter
+	private lateinit var checkoutJournalStorage: CheckoutJournalStorage
 	private var observeJob: Job? = null
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.GERMANY)
@@ -57,6 +60,7 @@ class SalesActivity : AppCompatActivity() {
 	private lateinit var cartClearButton: Button
 	private lateinit var cartCheckoutButton: Button
 	private var operationState: UiOperationState = UiOperationState.Idle
+	private var currentCheckoutTransactionId: String? = null
 	@Volatile
 	private var checkoutInProgress = false
 
@@ -67,9 +71,13 @@ class SalesActivity : AppCompatActivity() {
 		updateOperationState(UiOperationState.Loading)
 		runCatching {
 			repository = AppGraph.repository(this)
+			val dailySalesStorage = DailySalesStorage(this)
+			val orderStorage = OrderStorage(this)
+			checkoutJournalStorage = CheckoutJournalStorage(this)
 			checkoutService = CheckoutService(
-				dailySalesStorage = DailySalesStorage(this),
-				orderStorage = OrderStorage(this)
+				dailySalesStorage = dailySalesStorage,
+				orderStorage = orderStorage,
+				journalStorage = checkoutJournalStorage
 			)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			cartTotalText = findViewById(R.id.cartTotalText)
@@ -113,6 +121,7 @@ class SalesActivity : AppCompatActivity() {
 		cartClearButton.setOnClickListener {
 			if (checkoutInProgress) return@setOnClickListener
 			cartItems.clear()
+			currentCheckoutTransactionId = null
 			updateCart()
 		}
 		cartCheckoutButton.setOnClickListener {
@@ -184,6 +193,9 @@ class SalesActivity : AppCompatActivity() {
 
 				checkoutInProgress = true
 				updateOperationState(UiOperationState.Saving)
+				val transactionId = currentCheckoutTransactionId ?: UUID.randomUUID().toString().also {
+					currentCheckoutTransactionId = it
+				}
 				val changeCents = givenCents - finalTotalCents
 				val drafts = cartItems.map { entry ->
 					SaleDraftEntry(
@@ -196,13 +208,15 @@ class SalesActivity : AppCompatActivity() {
 						depositCents = entry.depositCents,
 						isEmployee = entry.isEmployee,
 						createBottleHelperRecord = entry.createBottleHelperRecord,
+						explicitOfferTaxCategory = entry.explicitOfferTaxCategory,
 						orderDraft = entry.orderDraft
 					)
 				}
 				lifecycleScope.launch {
-					when (val result = persistCheckout(drafts, finalTotalCents)) {
+					when (val result = persistCheckout(drafts, finalTotalCents, transactionId)) {
 						is OperationResult.Success -> {
 							cartItems.clear()
+							currentCheckoutTransactionId = null
 							updateCart()
 							updateOperationState(UiOperationState.Success("Kassiervorgang gespeichert"))
 							showChangeDialog(changeCents)
@@ -250,12 +264,14 @@ class SalesActivity : AppCompatActivity() {
 
 	private fun addToCart(entry: CartEntry) {
 		cartItems.add(entry)
+		currentCheckoutTransactionId = null
 		updateCart()
 	}
 
 	private fun removeFromCart(position: Int) {
 		if (position in cartItems.indices) {
 			cartItems.removeAt(position)
+			currentCheckoutTransactionId = null
 			updateCart()
 		}
 	}
@@ -521,6 +537,7 @@ class SalesActivity : AppCompatActivity() {
 					depositCents = actualDepositCents,
 					isEmployee   = isEmployee,
 					createBottleHelperRecord = true,
+					explicitOfferTaxCategory = TaxCategory.FOOD,
 					orderDraft = OrderDraftPayload(
 						articleName = article.name,
 						sizeName = sizeName,
@@ -776,11 +793,12 @@ class SalesActivity : AppCompatActivity() {
 
 	private suspend fun persistCheckout(
 		drafts: List<SaleDraftEntry>,
-		finalTotalCents: Long
+		finalTotalCents: Long,
+		transactionId: String
 	): OperationResult<Unit> {
 		return withContext(Dispatchers.IO) {
 			runCatching {
-				checkoutService.checkout(drafts, finalTotalCents)
+				checkoutService.checkout(drafts, finalTotalCents, transactionId)
 			}.fold(
 				onSuccess = { OperationResult.Success(Unit) },
 				onFailure = {
