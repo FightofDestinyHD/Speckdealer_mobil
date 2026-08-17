@@ -4,45 +4,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  verify-local-artifacts:
+  build-verify-and-upload:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check local release artifacts and checksums exist
-        run: |
-          test -f release-artifacts/app-release.apk
-          test -f release-artifacts/app-release.aab
-          test -f release-artifacts/app-release.apk.sha256
-          test -f release-artifacts/app-release.aab.sha256
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-      - name: Verify checksums
-        run: |
-          expected_apk="$(tr -d ' \r\n' < release-artifacts/app-release.apk.sha256)"
-          actual_apk="$(sha256sum release-artifacts/app-release.apk | awk '{print $1}')"
-          test "$expected_apk" = "$actual_apk"
-          expected_aab="$(tr -d ' \r\n' < release-artifacts/app-release.aab.sha256)"
-          actual_aab="$(sha256sum release-artifacts/app-release.aab | awk '{print $1}')"
-          test "$expected_aab" = "$actual_aab"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Upload local APK artifact
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: bash ./gradlew test
+
+      - name: Run lint
+        run: bash ./gradlew lint
+
+      - name: Assemble release (unsigned in CI)
+        run: bash ./gradlew assembleRelease
+
+      - name: Verify APK metadata
+        run: |
+          test -f app/build/outputs/apk/release/app-release.apk
+          aapt dump badging app/build/outputs/apk/release/app-release.apk | grep "package: name='com.speckdealer.app'"
+
+      - name: Generate release checksums
+        run: |
+          mkdir -p release-artifacts
+          cp app/build/outputs/apk/release/app-release.apk release-artifacts/app-release.apk
+          sha256sum release-artifacts/app-release.apk | awk '{print $1}' > release-artifacts/app-release.apk.sha256
+
+      - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk-local
           path: release-artifacts/app-release.apk
 
-      - name: Upload local AAB artifact
+      - name: Upload release checksum artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-aab-local
-          path: release-artifacts/app-release.aab
-
-      - name: Upload local checksum artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-checksums-local
-          path: |
-            release-artifacts/app-release.apk.sha256
-            release-artifacts/app-release.aab.sha256
+          name: app-release-checksum-local
+          path: release-artifacts/app-release.apk.sha256

@@ -30,6 +30,7 @@ import java.net.HttpURLConnection
 import java.security.MessageDigest
 import java.util.UUID
 import kotlin.concurrent.thread
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,7 +41,13 @@ class MainActivity : AppCompatActivity() {
 
 	private data class ReleaseAsset(
 		val apkUrl: String,
-		val checksumUrl: String?
+		val checksumUrl: String,
+		val assetName: String
+	)
+
+	private data class ApkValidationResult(
+		val isValid: Boolean,
+		val errorMessage: String? = null
 	)
 
 	companion object {
@@ -380,7 +387,11 @@ class MainActivity : AppCompatActivity() {
 
 		val manager = appUpdateManager
 		if (manager == null) {
-			downloadAndInstallLatestRelease()
+			Snackbar.make(
+				findViewById(android.R.id.content),
+				"Play-Updateprüfung nicht verfügbar. Kein Fallback auf GitHub bei Play-Installation.",
+				Snackbar.LENGTH_LONG
+			).show()
 			return
 		}
 
@@ -389,10 +400,18 @@ class MainActivity : AppCompatActivity() {
 			if (isImmediateUpdateAvailable(freshInfo)) {
 				startImmediateUpdate(freshInfo)
 			} else {
-				downloadAndInstallLatestRelease()
+				Snackbar.make(
+					findViewById(android.R.id.content),
+					getString(R.string.no_update_available),
+					Snackbar.LENGTH_LONG
+				).show()
 			}
 		}.addOnFailureListener {
-			downloadAndInstallLatestRelease()
+			Snackbar.make(
+				findViewById(android.R.id.content),
+				"Play-Updateprüfung fehlgeschlagen. Kein Fallback auf GitHub bei Play-Installation.",
+				Snackbar.LENGTH_LONG
+			).show()
 		}
 	}
 
@@ -422,7 +441,7 @@ class MainActivity : AppCompatActivity() {
 			startActivity(intent)
 			Snackbar.make(
 				findViewById(android.R.id.content),
-				getString(R.string.allow_unknown_sources),
+				"Bitte erlaube die Installation aus dieser Quelle. Die App-Daten bleiben erhalten.",
 				Snackbar.LENGTH_LONG
 			).show()
 			return
@@ -433,22 +452,22 @@ class MainActivity : AppCompatActivity() {
 		thread {
 			try {
 				val releaseAsset = resolveLatestApkAsset()
-				if (releaseAsset == null || releaseAsset.checksumUrl.isNullOrBlank()) {
+				if (releaseAsset == null) {
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
-							"Update-Release ohne Prüfsumme gefunden. Installation aus Sicherheitsgründen abgebrochen.",
+							"Es wurde keine gültige Release-APK mit Prüfsumme gefunden.",
 							Snackbar.LENGTH_LONG
 						).show()
 					}
 					return@thread
 				}
 				runOnUiThread { startDownloadViaDownloadManager(releaseAsset) }
-			} catch (_: Exception) {
+			} catch (e: Exception) {
 				runOnUiThread {
 					Snackbar.make(
 						findViewById(android.R.id.content),
-						getString(R.string.update_download_failed),
+						"Update-Download fehlgeschlagen: ${e.message ?: "Unbekannter Fehler"}",
 						Snackbar.LENGTH_LONG
 					).show()
 				}
@@ -466,7 +485,20 @@ class MainActivity : AppCompatActivity() {
 				conn.setRequestProperty("User-Agent", "SpeckdealerApp")
 				conn.connectTimeout = 15000
 				conn.readTimeout = 60000
+				conn.instanceFollowRedirects = true
 				conn.connect()
+				if (conn.responseCode !in 200..299) {
+					val code = conn.responseCode
+					conn.disconnect()
+					runOnUiThread {
+						Snackbar.make(
+							findViewById(android.R.id.content),
+							"Die APK konnte nicht vollständig heruntergeladen werden (HTTP $code).",
+							Snackbar.LENGTH_LONG
+						).show()
+					}
+					return@thread
+				}
 
 				conn.inputStream.use { input ->
 					apkFile.outputStream().use { output ->
@@ -474,13 +506,47 @@ class MainActivity : AppCompatActivity() {
 					}
 				}
 				conn.disconnect()
+				if (!apkFile.exists() || apkFile.length() <= 0L) {
+					runOnUiThread {
+						Snackbar.make(
+							findViewById(android.R.id.content),
+							"Die APK konnte nicht vollständig heruntergeladen werden.",
+							Snackbar.LENGTH_LONG
+						).show()
+					}
+					return@thread
+				}
 
 				val checksumValid = verifyApkChecksum(apkFile, releaseAsset.checksumUrl)
 				if (!checksumValid) {
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
-							"Update-Prüfsumme ungültig. Installation abgebrochen.",
+							"Die Prüfsumme der APK ist ungültig.",
+							Snackbar.LENGTH_LONG
+						).show()
+					}
+					return@thread
+				}
+
+				val apkMeta = inspectApkMetadata(apkFile)
+				if (apkMeta == null) {
+					runOnUiThread {
+						Snackbar.make(
+							findViewById(android.R.id.content),
+							"Die APK-Datei ist ungültig oder beschädigt.",
+							Snackbar.LENGTH_LONG
+						).show()
+					}
+					return@thread
+				}
+
+				val validation = validateApkForUpdate(apkMeta)
+				if (!validation.isValid) {
+					runOnUiThread {
+						Snackbar.make(
+							findViewById(android.R.id.content),
+							validation.errorMessage ?: "APK-Validierung fehlgeschlagen.",
 							Snackbar.LENGTH_LONG
 						).show()
 					}
@@ -492,7 +558,7 @@ class MainActivity : AppCompatActivity() {
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
-							"Update-Signatur ungültig oder abweichend. Installation abgebrochen.",
+							"Die neue APK ist nicht signaturkompatibel. Der ursprüngliche Release-Keystore muss verwendet werden.",
 							Snackbar.LENGTH_LONG
 						).show()
 					}
@@ -500,11 +566,11 @@ class MainActivity : AppCompatActivity() {
 				}
 
 				runOnUiThread { installApkFile(apkFile) }
-			} catch (_: Exception) {
+			} catch (e: Exception) {
 				runOnUiThread {
 					Snackbar.make(
 						findViewById(android.R.id.content),
-						getString(R.string.update_download_failed),
+						"Update-Download fehlgeschlagen: ${e.message ?: "Unbekannter Fehler"}",
 						Snackbar.LENGTH_LONG
 					).show()
 				}
@@ -570,7 +636,7 @@ class MainActivity : AppCompatActivity() {
 		}
 	}
 
-	/** Fragt die GitHub API ab und gibt APK + zugehörige SHA256-URL zurück. */
+	/** Fragt die GitHub API ab und gibt produktive APK + zugehörige SHA256-URL zurück. */
 	private fun resolveLatestApkAsset(): ReleaseAsset? {
 		val connection = java.net.URL(GITHUB_API_LATEST).openConnection() as HttpURLConnection
 		connection.setRequestProperty("Accept", "application/vnd.github+json")
@@ -578,34 +644,45 @@ class MainActivity : AppCompatActivity() {
 		connection.connectTimeout = 10000
 		connection.readTimeout = 10000
 		connection.connect()
-		val json = connection.inputStream.bufferedReader().use { it.readText() }
+		if (connection.responseCode !in 200..299) {
+			connection.disconnect()
+			return null
+		}
+		val body = connection.inputStream.bufferedReader().use { it.readText() }
 		connection.disconnect()
 
-		val assetsStart = json.indexOf("\"assets\"")
-		if (assetsStart < 0) return null
-		val urls = mutableListOf<String>()
-		var idx = json.indexOf('[', assetsStart)
-		while (idx >= 0) {
-			val urlKey = json.indexOf("\"browser_download_url\"", idx)
-			if (urlKey < 0) break
-			val colon = json.indexOf(':', urlKey)
-			val q1 = json.indexOf('"', colon + 1)
-			val q2 = json.indexOf('"', q1 + 1)
-			if (q1 < 0 || q2 < 0) break
-			urls += json.substring(q1 + 1, q2)
-			idx = q2
+		val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+		val assets = root.optJSONArray("assets") ?: return null
+		var apkUrl: String? = null
+		var apkName: String? = null
+		for (i in 0 until assets.length()) {
+			val asset = assets.optJSONObject(i) ?: continue
+			val name = asset.optString("name")
+			if (!name.equals("app-release.apk", ignoreCase = true)) continue
+			val url = asset.optString("browser_download_url")
+			if (url.isBlank() || url.contains("-debug", ignoreCase = true)) continue
+			apkUrl = url
+			apkName = name
+			break
 		}
+		if (apkUrl.isNullOrBlank() || apkName.isNullOrBlank()) return null
 
-		val apkUrl = urls.firstOrNull { it.endsWith(".apk") && !it.contains("-debug", ignoreCase = true) }
-			?: urls.firstOrNull { it.endsWith(".apk") }
-			?: return null
-		val apkFileName = apkUrl.substringAfterLast('/')
-		val checksumUrl = urls.firstOrNull { it.endsWith("$apkFileName.sha256") }
-		return ReleaseAsset(apkUrl = apkUrl, checksumUrl = checksumUrl)
+		val checksumName = "$apkName.sha256"
+		var checksumUrl: String? = null
+		for (i in 0 until assets.length()) {
+			val asset = assets.optJSONObject(i) ?: continue
+			if (!asset.optString("name").equals(checksumName, ignoreCase = true)) continue
+			val url = asset.optString("browser_download_url")
+			if (url.isNotBlank()) {
+				checksumUrl = url
+				break
+			}
+		}
+		if (checksumUrl.isNullOrBlank()) return null
+		return ReleaseAsset(apkUrl = apkUrl, checksumUrl = checksumUrl, assetName = apkName)
 	}
 
-	private fun verifyApkChecksum(apkFile: File, checksumUrl: String?): Boolean {
-		if (checksumUrl.isNullOrBlank()) return false
+	private fun verifyApkChecksum(apkFile: File, checksumUrl: String): Boolean {
 		val expected = downloadChecksumValue(checksumUrl) ?: return false
 		val actual = sha256OfFile(apkFile)
 		return expected.equals(actual, ignoreCase = true)
@@ -617,10 +694,45 @@ class MainActivity : AppCompatActivity() {
 		connection.connectTimeout = 10000
 		connection.readTimeout = 10000
 		connection.connect()
+		if (connection.responseCode !in 200..299) {
+			connection.disconnect()
+			return null
+		}
 		val content = connection.inputStream.bufferedReader().use { it.readText() }.trim()
 		connection.disconnect()
 		if (content.isBlank()) return null
 		return content.split(Regex("\\s+")).firstOrNull()?.trim()?.ifBlank { null }
+	}
+
+	private fun inspectApkMetadata(apkFile: File): PackageInfo? {
+		val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+			PackageManager.GET_SIGNING_CERTIFICATES
+		} else {
+			@Suppress("DEPRECATION")
+			PackageManager.GET_SIGNATURES
+		}
+		return packageManager.getPackageArchiveInfo(apkFile.absolutePath, flags)
+	}
+
+	private fun validateApkForUpdate(apkInfo: PackageInfo): ApkValidationResult {
+		val apkPackage = apkInfo.packageName.orEmpty()
+		if (apkPackage != packageName) {
+			return ApkValidationResult(
+				isValid = false,
+				errorMessage = "Die APK gehört nicht zu com.speckdealer.app."
+			)
+		}
+		val installedVersionCode = runCatching {
+			PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
+		}.getOrDefault(Long.MAX_VALUE)
+		val apkVersionCode = PackageInfoCompat.getLongVersionCode(apkInfo)
+		if (apkVersionCode <= installedVersionCode) {
+			return ApkValidationResult(
+				isValid = false,
+				errorMessage = "Die neue Version ist nicht neuer als die installierte Version."
+			)
+		}
+		return ApkValidationResult(isValid = true)
 	}
 
 	private fun sha256OfFile(file: File): String {
