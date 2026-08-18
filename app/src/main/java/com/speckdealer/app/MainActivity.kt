@@ -142,6 +142,7 @@ class MainActivity : AppCompatActivity() {
 			val depositReturnTile = findViewById<View>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
 			val archiveTile = findViewById<View?>(R.id.archiveTile)
+			val deviceSyncTile = findViewById<View?>(R.id.deviceSyncTile)
 			val devModeEntry = findViewById<TextView?>(R.id.devModeEntry)
 
 			if (salesTile == null) {
@@ -158,6 +159,9 @@ class MainActivity : AppCompatActivity() {
 			}
 			if (archiveTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: archiveTile fehlt im Layout")
+			}
+			if (deviceSyncTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: deviceSyncTile fehlt im Layout")
 			}
 			if (devModeEntry == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: devModeEntry fehlt im Layout")
@@ -218,6 +222,10 @@ class MainActivity : AppCompatActivity() {
 
 			archiveTile?.setOnClickListener {
 				startActivity(Intent(this, ArchivedReportsActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
+			}
+
+			deviceSyncTile?.setOnClickListener {
+				startActivity(Intent(this, DeviceSyncActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 			}
 
 			devModeEntry?.let { entry ->
@@ -451,6 +459,7 @@ class MainActivity : AppCompatActivity() {
 		try {
 			val welcomeContainer = findViewById<View>(R.id.welcomeContainer)
 			val menuContainer = findViewById<View>(R.id.menuContainer)
+			val menuScrollContainer = findViewById<View?>(R.id.menuScrollContainer)
 
 			welcomeContainer.animate()
 				.alpha(0f)
@@ -460,6 +469,7 @@ class MainActivity : AppCompatActivity() {
 					try {
 						welcomeContainer.visibility = View.GONE
 						menuContainer.visibility = View.VISIBLE
+						menuScrollContainer?.visibility = View.VISIBLE
 						menuContainer.alpha = 0f
 						menuContainer.animate()
 							.alpha(1f)

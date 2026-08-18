@@ -4,209 +4,182 @@
 	android:layout_height="match_parent"
 	android:background="@drawable/app_background"
 	android:orientation="vertical"
-	android:padding="16dp">
+	android:padding="12dp">
 
 	<TextView
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:paddingBottom="12dp"
+		android:paddingBottom="8dp"
 		android:text="Tagesabschluss"
 		android:textColor="#FFFFFF"
-		android:textSize="28sp"
+		android:textSize="24sp"
 		android:textStyle="bold" />
 
-	<LinearLayout
+	<ScrollView
 		android:layout_width="match_parent"
 		android:layout_height="0dp"
 		android:layout_weight="1"
-		android:orientation="horizontal"
-		android:baselineAligned="false">
+		android:fillViewport="true">
 
-		<ScrollView
-			android:layout_width="0dp"
-			android:layout_height="match_parent"
-			android:layout_weight="2"
-			android:layout_marginEnd="10dp"
-			android:fillViewport="true">
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
 
-			<LinearLayout
+			<TextView
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:orientation="vertical">
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Umsatzübersicht"
+				android:textSize="18sp"
+				android:textStyle="bold" />
 
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Umsatzübersicht"
-					android:textSize="20sp"
-					android:textStyle="bold" />
-
-				<TextView
-					android:id="@+id/reportSummaryText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginBottom="10dp"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Getränke – MwSt. 19 %"
-					android:textSize="20sp"
-					android:textStyle="bold" />
-
-				<TextView
-					android:id="@+id/reportBeverageVatText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginBottom="10dp"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Speisen – MwSt. 7 %"
-					android:textSize="20sp"
-					android:textStyle="bold" />
-
-				<TextView
-					android:id="@+id/reportFoodVatText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginBottom="10dp"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Verkaufsdetails"
-					android:textSize="20sp"
-					android:textStyle="bold" />
-
-				<TextView
-					android:id="@+id/reportSalesDetailsText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginBottom="10dp"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Mitarbeiterverkäufe"
-					android:textSize="20sp"
-					android:textStyle="bold" />
-
-				<TextView
-					android:id="@+id/reportEmployeeText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-			</LinearLayout>
-		</ScrollView>
-
-		<ScrollView
-			android:layout_width="0dp"
-			android:layout_height="match_parent"
-			android:layout_weight="1"
-			android:fillViewport="true">
-
-			<LinearLayout
+			<TextView
+				android:id="@+id/reportSummaryText"
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:orientation="vertical">
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
 
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Pfand"
-					android:textSize="20sp"
-					android:textStyle="bold" />
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Getränke – MwSt. 19 %"
+				android:textSize="18sp"
+				android:textStyle="bold" />
 
-				<TextView
-					android:id="@+id/reportDepositSummaryText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:layout_marginBottom="10dp"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
+			<TextView
+				android:id="@+id/reportBeverageVatText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
 
-				<TextView
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:text="Pfand nach Art"
-					android:textSize="20sp"
-					android:textStyle="bold" />
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Speisen – MwSt. 7 %"
+				android:textSize="18sp"
+				android:textStyle="bold" />
 
-				<TextView
-					android:id="@+id/reportDepositBreakdownText"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:background="#CCFFFFFF"
-					android:padding="12dp"
-					android:textSize="17sp" />
-			</LinearLayout>
-		</ScrollView>
-	</LinearLayout>
+			<TextView
+				android:id="@+id/reportFoodVatText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
 
-	<LinearLayout
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:paddingTop="12dp">
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Verkaufsdetails"
+				android:textSize="18sp"
+				android:textStyle="bold" />
 
-		<Button
-			android:id="@+id/reportArchiveButton"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:layout_marginEnd="8dp"
-			android:backgroundTint="#1565C0"
-			android:text="Archiv öffnen"
-			android:textColor="#FFFFFF" />
+			<TextView
+				android:id="@+id/reportSalesDetailsText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
 
-		<Button
-			android:id="@+id/reportResetButton"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:layout_marginEnd="8dp"
-			android:backgroundTint="#B71C1C"
-			android:text="Tag abschließen &amp; zurücksetzen"
-			android:textColor="#FFFFFF" />
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Mitarbeiterverkäufe"
+				android:textSize="18sp"
+				android:textStyle="bold" />
 
-		<Button
-			android:id="@+id/reportCloseButton"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:backgroundTint="#1B5E20"
-			android:text="Schließen"
-			android:textColor="#FFFFFF" />
-	</LinearLayout>
+			<TextView
+				android:id="@+id/reportEmployeeText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Pfand"
+				android:textSize="18sp"
+				android:textStyle="bold" />
+
+			<TextView
+				android:id="@+id/reportDepositSummaryText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="10dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:text="Pfand nach Art"
+				android:textSize="18sp"
+				android:textStyle="bold" />
+
+			<TextView
+				android:id="@+id/reportDepositBreakdownText"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="12dp"
+				android:background="#CCFFFFFF"
+				android:padding="12dp"
+				android:textSize="16sp" />
+
+			<Button
+				android:id="@+id/reportArchiveButton"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:backgroundTint="#1565C0"
+				android:text="Archiv öffnen"
+				android:textColor="#FFFFFF" />
+
+			<Button
+				android:id="@+id/reportResetButton"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="8dp"
+				android:backgroundTint="#B71C1C"
+				android:text="Tag abschließen &amp; zurücksetzen"
+				android:textColor="#FFFFFF" />
+
+			<Button
+				android:id="@+id/reportCloseButton"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="8dp"
+				android:backgroundTint="#1B5E20"
+				android:text="Schließen"
+				android:textColor="#FFFFFF" />
+		</LinearLayout>
+	</ScrollView>
 </LinearLayout>

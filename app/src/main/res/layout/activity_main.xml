@@ -48,19 +48,26 @@
 			android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5" />
 	</LinearLayout>
 
-	<GridLayout
-		android:id="@+id/menuContainer"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:alignmentMode="alignBounds"
-		android:alpha="0"
-		android:columnCount="4"
-		android:rowCount="2"
+	<ScrollView
+		android:id="@+id/menuScrollContainer"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:fillViewport="true"
 		android:visibility="gone"
+		app:layout_constraintTop_toTopOf="parent"
 		app:layout_constraintBottom_toBottomOf="parent"
-		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toTopOf="parent">
+		app:layout_constraintEnd_toEndOf="parent">
+
+		<GridLayout
+			android:id="@+id/menuContainer"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:alignmentMode="alignBounds"
+			android:alpha="0"
+			android:columnCount="2"
+			android:rowCount="4"
+			android:visibility="gone">
 
 		<TextView
 			android:id="@+id/salesTile"
@@ -206,6 +213,26 @@
 			android:maxLines="2"
 			android:padding="6dp"
 			android:text="@string/update_tile_symbol" />
-	</GridLayout>
+
+		<TextView
+			android:id="@+id/deviceSyncTile"
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:layout_margin="4dp"
+			android:autoSizeMaxTextSize="14sp"
+			android:autoSizeMinTextSize="8sp"
+			android:autoSizeStepGranularity="1sp"
+			android:autoSizeTextType="uniform"
+			android:background="@drawable/menu_tile_background"
+			android:clickable="true"
+			android:focusable="true"
+			android:foreground="?attr/selectableItemBackground"
+			android:gravity="center"
+			android:includeFontPadding="false"
+			android:maxLines="2"
+			android:padding="6dp"
+			android:text="Geräte\nSync" />
+		</GridLayout>
+	</ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

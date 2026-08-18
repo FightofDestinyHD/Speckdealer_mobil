@@ -26,15 +26,22 @@ Ohne valide Signierung schlägt ein Release-Build absichtlich fehl.
 ## Lokaler Build (verbindlich)
 Builds werden lokal erzeugt, dann hochgeladen/released.
 
-1. Lokal Release bauen:
-   - `./gradlew :app:assembleRelease :app:bundleRelease`
-2. Artefakte bereitstellen:
+1. Vor Commit/Tag/Push Release-Guard ausführen:
+   - `powershell -ExecutionPolicy Bypass -File scripts/pre-release.ps1`
+2. Der Guard prüft automatisch:
+   - monotones `versionCode` (`max(externe Quellen) + 1`)
+   - `applicationId == com.speckdealer.app`
+   - lokaler Full-Build (`test lint assembleRelease bundleRelease`)
+   - gebaute APK-Version gegen Quellcode
+   - Signaturgleichheit: neue APK ↔ produktiver Keystore ↔ installierte/Referenz-APK
+3. Nur bei erfolgreichem Guard Commit/Tag/Push ausführen.
+4. Artefakte bereitstellen:
    - `release-artifacts/app-release.apk`
    - `release-artifacts/app-release.aab`
-3. Prüfsummen erzeugen:
+5. Prüfsummen erzeugen:
    - `sha256sum release-artifacts/app-release.apk | awk '{print $1}' > release-artifacts/app-release.apk.sha256`
    - `sha256sum release-artifacts/app-release.aab | awk '{print $1}' > release-artifacts/app-release.aab.sha256`
-4. Artefakte bewusst versionieren (falls gewünscht):
+6. Artefakte bewusst versionieren (falls gewünscht):
    - `git add -f release-artifacts/app-release.apk release-artifacts/app-release.aab release-artifacts/app-release.apk.sha256 release-artifacts/app-release.aab.sha256`
 
 ## Upload-Workflow (ohne Cloud-Build)

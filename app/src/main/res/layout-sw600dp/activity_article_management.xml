@@ -3,76 +3,69 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:background="@drawable/app_background"
-	android:orientation="vertical"
-	android:padding="12dp">
-
-	<HorizontalScrollView
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:fillViewport="true"
-		android:scrollbars="none">
-
-		<LinearLayout
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:orientation="horizontal"
-			android:padding="8dp"
-			android:background="#CCFFFFFF">
-
-			<Button
-				android:id="@+id/categoryWeinButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="Wein" />
-
-			<Button
-				android:id="@+id/categorySoftButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Softgetränke" />
-
-			<Button
-				android:id="@+id/categorySpeckButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Speck" />
-
-			<Button
-				android:id="@+id/categoryKaeseButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Käse" />
-
-			<Button
-				android:id="@+id/categorySnacksButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Snacks" />
-
-			<Button
-				android:id="@+id/categoryAngebotButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Angebot" />
-
-			<Button
-				android:id="@+id/categoryPfandButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Pfand" />
-		</LinearLayout>
-	</HorizontalScrollView>
+	android:orientation="horizontal"
+	android:padding="16dp">
 
 	<LinearLayout
-		android:layout_width="match_parent"
-		android:layout_height="0dp"
-		android:layout_marginTop="10dp"
+		android:layout_width="160dp"
+		android:layout_height="match_parent"
+		android:background="#CCFFFFFF"
+		android:orientation="vertical"
+		android:padding="8dp">
+
+		<Button
+			android:id="@+id/categoryWeinButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Wein" />
+
+		<Button
+			android:id="@+id/categorySoftButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Softgetränke" />
+
+		<Button
+			android:id="@+id/categorySpeckButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Speck" />
+
+		<Button
+			android:id="@+id/categoryKaeseButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Käse" />
+
+		<Button
+			android:id="@+id/categorySnacksButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Snacks" />
+
+		<Button
+			android:id="@+id/categoryAngebotButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Angebot" />
+
+		<Button
+			android:id="@+id/categoryPfandButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Pfand" />
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="0dp"
+		android:layout_height="match_parent"
+		android:layout_marginStart="12dp"
 		android:layout_weight="1"
 		android:background="#E6FFFFFF"
 		android:orientation="vertical"

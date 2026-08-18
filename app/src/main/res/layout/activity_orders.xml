@@ -16,6 +16,16 @@
 		android:paddingBottom="12dp" />
 
 	<TextView
+		android:id="@+id/ordersSyncStatusText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Offline"
+		android:textSize="16sp"
+		android:textStyle="bold"
+		android:textColor="#FFFFFF"
+		android:paddingBottom="6dp" />
+
+	<TextView
 		android:id="@+id/ordersEmptyText"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"

@@ -240,6 +240,28 @@
 			android:padding="10dp"
 			android:text="@string/update_tile_symbol" />
 
+		<TextView
+			android:id="@+id/deviceSyncTile"
+			android:layout_width="110dp"
+			android:layout_height="110dp"
+			android:layout_margin="8dp"
+			android:layout_row="2"
+			android:layout_column="0"
+			android:layout_gravity="fill"
+			android:autoSizeMaxTextSize="22sp"
+			android:autoSizeMinTextSize="12sp"
+			android:autoSizeStepGranularity="1sp"
+			android:autoSizeTextType="uniform"
+			android:background="@drawable/menu_tile_background"
+			android:clickable="true"
+			android:focusable="true"
+			android:foreground="?attr/selectableItemBackground"
+			android:gravity="center"
+			android:includeFontPadding="false"
+			android:maxLines="2"
+			android:padding="10dp"
+			android:text="Geräte\nSync" />
+
 	</GridLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -4,36 +4,44 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:background="@drawable/app_background"
-	android:orientation="vertical"
-	android:padding="12dp">
+	android:orientation="horizontal">
 
-	<com.google.android.material.tabs.TabLayout
-		android:id="@+id/salesTabLayout"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:background="#DDFFFFFF"
-		app:tabMode="scrollable" />
-
-	<androidx.recyclerview.widget.RecyclerView
-		android:id="@+id/salesArticleRecyclerView"
-		android:layout_width="match_parent"
-		android:layout_height="0dp"
-		android:layout_marginTop="8dp"
-		android:layout_weight="1"
-		android:background="#CCFFFFFF"
-		android:clipToPadding="false"
-		android:padding="8dp" />
-
+	<!-- Linke Spalte: Tabs + Artikel-Liste -->
 	<LinearLayout
-		android:id="@+id/cartContainer"
-		android:layout_width="match_parent"
-		android:layout_height="0dp"
-		android:layout_marginTop="8dp"
+		android:layout_width="0dp"
+		android:layout_height="match_parent"
 		android:layout_weight="1"
+		android:orientation="vertical">
+
+		<com.google.android.material.tabs.TabLayout
+			android:id="@+id/salesTabLayout"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:background="#DDFFFFFF"
+			app:tabMode="scrollable" />
+
+		<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/salesArticleRecyclerView"
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_marginTop="10dp"
+			android:layout_weight="1"
+			android:background="#CCFFFFFF"
+			android:clipToPadding="false"
+			android:padding="8dp" />
+
+	</LinearLayout>
+
+	<!-- Rechte Spalte: Warenkorb -->
+	<LinearLayout
+		android:layout_width="220dp"
+		android:layout_height="match_parent"
+		android:layout_marginStart="8dp"
 		android:background="#E8FFFFFF"
 		android:orientation="vertical"
 		android:padding="8dp">
 
+		<!-- Warenkorb-Titel -->
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -52,7 +60,6 @@
 				android:id="@+id/cartClearButton"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:minHeight="48dp"
 				android:backgroundTint="#B71C1C"
 				android:text="Leeren"
 				android:textColor="#FFFFFF"
@@ -60,6 +67,7 @@
 
 		</LinearLayout>
 
+		<!-- Trennlinie -->
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
@@ -67,12 +75,14 @@
 			android:layout_marginBottom="6dp"
 			android:background="#AAAAAA" />
 
+		<!-- Positionen -->
 		<androidx.recyclerview.widget.RecyclerView
 			android:id="@+id/cartRecyclerView"
 			android:layout_width="match_parent"
 			android:layout_height="0dp"
 			android:layout_weight="1" />
 
+		<!-- Trennlinie -->
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
@@ -80,6 +90,7 @@
 			android:layout_marginBottom="4dp"
 			android:background="#AAAAAA" />
 
+		<!-- Gesamtbetrag -->
 		<TextView
 			android:id="@+id/cartTotalText"
 			android:layout_width="match_parent"
@@ -88,11 +99,11 @@
 			android:textSize="16sp"
 			android:textStyle="bold" />
 
+		<!-- Kassieren -->
 		<Button
 			android:id="@+id/cartCheckoutButton"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:minHeight="48dp"
 			android:layout_marginTop="8dp"
 			android:backgroundTint="#1B5E20"
 			android:text="Kassieren"

@@ -25,9 +25,16 @@ class OrderStorage(context: Context, namespaceSuffix: String = "prod") {
 		synchronized(lock) {
 			val (writeResult, _) = store.updateArray { currentArray ->
 				val list = loadFromArray(currentArray).toMutableList()
-				for (order in orders) {
-					if (list.none { it.id == order.id }) {
-						list.add(order)
+				for (incoming in orders) {
+					val idx = list.indexOfFirst { it.id == incoming.id }
+					if (idx < 0) {
+						list.add(incoming)
+					} else {
+						val existing = list[idx]
+						val replace = shouldReplace(existing, incoming)
+						if (replace) {
+							list[idx] = incoming
+						}
 					}
 				}
 				val normalized = normalize(list)
@@ -75,8 +82,18 @@ class OrderStorage(context: Context, namespaceSuffix: String = "prod") {
 
 	private fun normalize(list: List<OrderRecord>): List<OrderRecord> {
 		return list
-			.distinctBy { it.id }
-			.sortedBy { it.timestampMs }
+			.groupBy { it.id }
+			.values
+			.map { records -> records.reduce { acc, next -> if (shouldReplace(acc, next)) next else acc } }
+			.sortedBy { it.createdAtUtcMs }
+	}
+
+	private fun shouldReplace(existing: OrderRecord, incoming: OrderRecord): Boolean {
+		if (incoming.syncVersion > existing.syncVersion) return true
+		if (incoming.syncVersion < existing.syncVersion) return false
+		if (incoming.updatedAtUtcMs > existing.updatedAtUtcMs) return true
+		if (incoming.updatedAtUtcMs < existing.updatedAtUtcMs) return false
+		return incoming.timestampMs > existing.timestampMs
 	}
 
 	private fun toJsonArray(list: List<OrderRecord>): JSONArray {

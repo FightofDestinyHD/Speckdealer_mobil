@@ -2,6 +2,15 @@ package com.speckdealer.app.data
 
 import org.json.JSONObject
 
+enum class OrderStatus {
+	OPEN,
+	IN_PROGRESS,
+	READY,
+	COMPLETED,
+	CANCELLED,
+	PENDING_SYNC
+}
+
 data class OrderRecord(
 	val id: String,
 	val articleName: String,
@@ -20,7 +29,13 @@ data class OrderRecord(
 	val glaesser01: Int = 0,
 	val glaesser02: Int = 0,
 	val transactionId: String = "",
-	val timestampMs: Long = System.currentTimeMillis()
+	val timestampMs: Long = System.currentTimeMillis(),
+	val createdAtUtcMs: Long = timestampMs,
+	val updatedAtUtcMs: Long = timestampMs,
+	val sourceDeviceId: String = "",
+	val status: String = OrderStatus.OPEN.name,
+	val syncVersion: Long = 1L,
+	val isTestData: Boolean = false
 ) {
 	/** Lesbare Zusammenfassung der Toppings/Sonderwünsche für die Bestellliste */
 	fun buildDetailsText(): String = buildString {
@@ -51,26 +66,47 @@ data class OrderRecord(
 		put("glaesser02", glaesser02)
 		put("transactionId", transactionId)
 		put("timestampMs", timestampMs)
+		put("createdAtUtcMs", createdAtUtcMs)
+		put("updatedAtUtcMs", updatedAtUtcMs)
+		put("sourceDeviceId", sourceDeviceId)
+		put("status", status)
+		put("syncVersion", syncVersion)
+		put("isTestData", isTestData)
 	}
 
 	companion object {
-		fun fromJson(obj: JSONObject): OrderRecord = OrderRecord(
-			id = obj.optString("id", System.currentTimeMillis().toString()),
-			articleName = obj.getString("articleName"),
-			sizeName = obj.optString("sizeName", ""),
-			priceCents = obj.optInt("priceCents", 0),
-			depositCents = obj.optInt("depositCents", 0),
-			isEmployee = obj.optBoolean("isEmployee", false),
-			gurken = obj.optInt("gurken", 1),
-			tomaten = obj.optInt("tomaten", 1),
-			zwiebeln = obj.optInt("zwiebeln", 1),
-			oliven = obj.optInt("oliven", 1),
-			brezeln = obj.optInt("brezeln", 1),
-			sonderwunsch = obj.optString("sonderwunsch", ""),
-			glaesser01 = obj.optInt("glaesser01", 0),
-			glaesser02 = obj.optInt("glaesser02", 0),
-			transactionId = obj.optString("transactionId", ""),
-			timestampMs = obj.optLong("timestampMs", System.currentTimeMillis())
-		)
+		fun fromJson(obj: JSONObject): OrderRecord {
+			val now = System.currentTimeMillis()
+			val timestamp = obj.optLong("timestampMs", now)
+			return OrderRecord(
+				id = obj.optString("id", now.toString()),
+				articleName = obj.optString("articleName", ""),
+				sizeName = obj.optString("sizeName", ""),
+				priceCents = obj.optInt("priceCents", 0),
+				depositCents = obj.optInt("depositCents", 0),
+				isEmployee = obj.optBoolean("isEmployee", false),
+				gurken = obj.optInt("gurken", 1),
+				tomaten = obj.optInt("tomaten", 1),
+				zwiebeln = obj.optInt("zwiebeln", 1),
+				oliven = obj.optInt("oliven", 1),
+				brezeln = obj.optInt("brezeln", 1),
+				sonderwunsch = obj.optString("sonderwunsch", ""),
+				glaesser01 = obj.optInt("glaesser01", 0),
+				glaesser02 = obj.optInt("glaesser02", 0),
+				transactionId = obj.optString("transactionId", ""),
+				timestampMs = timestamp,
+				createdAtUtcMs = obj.optLong("createdAtUtcMs", timestamp),
+				updatedAtUtcMs = obj.optLong("updatedAtUtcMs", timestamp),
+				sourceDeviceId = obj.optString("sourceDeviceId", ""),
+				status = obj.optString("status", OrderStatus.OPEN.name),
+				syncVersion = obj.optLong("syncVersion", 1L),
+				isTestData = obj.optBoolean("isTestData", false)
+			)
+		}
+	}
+
+	fun withStatus(newStatus: OrderStatus, updatedAt: Long = System.currentTimeMillis()): OrderRecord {
+		val nextVersion = (syncVersion + 1L).coerceAtLeast(1L)
+		return copy(status = newStatus.name, updatedAtUtcMs = updatedAt, syncVersion = nextVersion)
 	}
 }

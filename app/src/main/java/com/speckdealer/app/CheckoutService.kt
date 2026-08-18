@@ -7,6 +7,7 @@ import com.speckdealer.app.data.CheckoutJournalStatus
 import com.speckdealer.app.data.CheckoutJournalStorage
 import com.speckdealer.app.data.DailySalesStorage
 import com.speckdealer.app.data.OrderRecord
+import com.speckdealer.app.data.OrderStatus
 import com.speckdealer.app.data.OrderStorage
 import com.speckdealer.app.data.SaleRecord
 import java.util.UUID
@@ -187,6 +188,7 @@ class CheckoutService(
 			}
 
 			draft.orderDraft?.let { order ->
+				val now = System.currentTimeMillis()
 				orders += OrderRecord(
 					id = "$transactionId:order:$index",
 					articleName = order.articleName,
@@ -202,7 +204,12 @@ class CheckoutService(
 					sonderwunsch = order.sonderwunsch,
 					glaesser01 = order.glaesser01,
 					glaesser02 = order.glaesser02,
-					transactionId = transactionId
+					transactionId = transactionId,
+					timestampMs = now,
+					createdAtUtcMs = now,
+					updatedAtUtcMs = now,
+					status = OrderStatus.PENDING_SYNC.name,
+					syncVersion = 1L
 				)
 			}
 		}

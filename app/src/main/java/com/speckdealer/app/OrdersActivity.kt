@@ -7,10 +7,15 @@ import android.widget.Button
 import android.widget.TextView
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.launch
 import com.speckdealer.app.data.DataModeAwareStorageFactory
+import com.speckdealer.app.data.LocalOrderSyncManager
+import com.speckdealer.app.data.LocalOrderSyncRegistry
 import com.speckdealer.app.data.OrderRecord
+import com.speckdealer.app.data.OrderStatus
 import com.speckdealer.app.data.OrderStorage
 import java.text.NumberFormat
 import java.util.Locale
@@ -20,23 +25,32 @@ class OrdersActivity : AppCompatActivity() {
 	private lateinit var storage: OrderStorage
 	private lateinit var adapter: OrderAdapter
 	private lateinit var emptyText: TextView
+	private lateinit var syncStatusText: TextView
+	private var syncManager: LocalOrderSyncManager? = null
+	private lateinit var dataMode: String
 
 	override fun onCreate(savedInstanceState: Bundle?) {
-		super.onCreate(savedInstanceState)
-		setContentView(R.layout.activity_orders)
+	super.onCreate(savedInstanceState)
+	setContentView(R.layout.activity_orders)
 
-		val dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
-		storage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
-		emptyText = findViewById(R.id.ordersEmptyText)
+	dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+	storage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
+	emptyText = findViewById(R.id.ordersEmptyText)
+	syncStatusText = findViewById(R.id.ordersSyncStatusText)
+	syncManager = runCatching { LocalOrderSyncRegistry.get(this, dataMode) }.getOrNull()
 
-		adapter = OrderAdapter(
-			orders = storage.loadAll(),
-			onDone = { order ->
-				storage.remove(order.id)
-				adapter.remove(order.id)
-				updateEmptyState()
+	adapter = OrderAdapter(
+		orders = storage.loadAll().filter { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name }.toMutableList(),
+		onDone = { order ->
+			val completed = order.withStatus(OrderStatus.COMPLETED)
+			storage.addAll(listOf(completed))
+			adapter.remove(order.id)
+			updateEmptyState()
+			lifecycleScope.launch {
+				syncManager?.syncNow()
 			}
-		)
+		}
+	)
 
 		findViewById<RecyclerView>(R.id.ordersRecyclerView).apply {
 			layoutManager = LinearLayoutManager(this@OrdersActivity)
@@ -50,12 +64,28 @@ class OrdersActivity : AppCompatActivity() {
 
 	override fun onResume() {
 		super.onResume()
-		adapter.replaceAll(storage.loadAll())
+		adapter.replaceAll(storage.loadAll().filter { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name })
 		updateEmptyState()
+		refreshSyncStatus()
+	}
+
+	override fun onDestroy() {
+		super.onDestroy()
 	}
 
 	private fun updateEmptyState() {
 		emptyText.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.GONE
+	}
+
+	private fun refreshSyncStatus() {
+		val state = syncManager?.state()?.value
+		syncStatusText.text = when (state?.status) {
+			com.speckdealer.app.data.OrderSyncStatus.SYNCHRONIZED -> "Synchronisiert"
+			com.speckdealer.app.data.OrderSyncStatus.SYNCING -> "Wird synchronisiert"
+			com.speckdealer.app.data.OrderSyncStatus.OFFLINE -> "Offline"
+			com.speckdealer.app.data.OrderSyncStatus.ERROR -> "Fehler"
+			null -> "Offline"
+		}
 	}
 }
 

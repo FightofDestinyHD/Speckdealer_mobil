@@ -20,6 +20,7 @@
 		<activity android:name=".ArchivedReportsActivity" />
 		<activity android:name=".ArchivedReportDetailActivity" />
 		<activity android:name=".DevModeActivity" />
+		<activity android:name=".DeviceSyncActivity" />
 		<activity
 			android:name=".MainActivity"
 			android:exported="true">
