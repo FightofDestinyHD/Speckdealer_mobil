@@ -162,10 +162,12 @@
 			android:autoSizeTextType="uniform"
 			android:background="@drawable/menu_tile_background"
 			android:clickable="true"
+			android:ellipsize="none"
 			android:focusable="true"
 			android:foreground="?attr/selectableItemBackground"
 			android:gravity="center"
 			android:includeFontPadding="false"
+			android:lines="2"
 			android:maxLines="2"
 			android:padding="6dp"
 			android:text="@string/tile_deposit_return" />
