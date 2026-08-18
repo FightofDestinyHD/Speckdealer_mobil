@@ -47,8 +47,8 @@ android {
 		applicationId = "com.speckdealer.app"
 		minSdk = 24
 		targetSdk = 34
-		versionCode = 56
-		versionName = "0.1.56"
+		versionCode = 60
+		versionName = "0.1.60"
 		buildConfigField("boolean", "ENABLE_DEV_MODE", "true")
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
