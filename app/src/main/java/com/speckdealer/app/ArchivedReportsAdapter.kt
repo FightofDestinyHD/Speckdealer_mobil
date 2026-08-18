@@ -28,7 +28,11 @@ class ArchivedReportsAdapter(
 		val item = items[position]
 		holder.dateText.text = "Geschäftsdatum: ${item.businessDate}"
 		holder.archivedAtText.text = "Archiviert am: ${dateTimeFormat.format(Date(item.archivedAt))}"
-		holder.revenueText.text = "Brutto-Umsatz ohne Pfand: ${MoneyValueService.formatCents(item.totalRevenueCents)}"
+		holder.revenueText.text = "Gesamtumsatz: ${MoneyValueService.formatCents(item.totalRevenueCents)}"
+		holder.beverageVatText.text = "Getränke MwSt. 19 %: ${MoneyValueService.formatCents(item.beverageVatCents)}"
+		holder.foodVatText.text = "Speisen MwSt. 7 %: ${MoneyValueService.formatCents(item.foodVatCents)}"
+		holder.depositReceivedText.text = "Pfand erhalten: ${MoneyValueService.formatCents(item.depositReceivedCents)}"
+		holder.depositReturnedText.text = "Pfand zurückgegeben: ${MoneyValueService.formatCents(item.depositReturnedCents)}"
 		holder.depositText.text = "Pfand-Saldo: ${MoneyValueService.formatCents(item.depositBalanceCents)}"
 		holder.itemView.setOnClickListener { onClick(item) }
 	}
@@ -37,6 +41,10 @@ class ArchivedReportsAdapter(
 		val dateText: TextView = view.findViewById(R.id.archiveItemDateText)
 		val archivedAtText: TextView = view.findViewById(R.id.archiveItemArchivedAtText)
 		val revenueText: TextView = view.findViewById(R.id.archiveItemRevenueText)
+		val beverageVatText: TextView = view.findViewById(R.id.archiveItemBeverageVatText)
+		val foodVatText: TextView = view.findViewById(R.id.archiveItemFoodVatText)
+		val depositReceivedText: TextView = view.findViewById(R.id.archiveItemDepositReceivedText)
+		val depositReturnedText: TextView = view.findViewById(R.id.archiveItemDepositReturnedText)
 		val depositText: TextView = view.findViewById(R.id.archiveItemDepositText)
 	}
 }

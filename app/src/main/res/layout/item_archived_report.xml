@@ -29,6 +29,34 @@
 		android:paddingTop="8dp" />
 
 	<TextView
+		android:id="@+id/archiveItemBeverageVatText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="14sp"
+		android:paddingTop="2dp" />
+
+	<TextView
+		android:id="@+id/archiveItemFoodVatText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="14sp"
+		android:paddingTop="2dp" />
+
+	<TextView
+		android:id="@+id/archiveItemDepositReceivedText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="14sp"
+		android:paddingTop="2dp" />
+
+	<TextView
+		android:id="@+id/archiveItemDepositReturnedText"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="14sp"
+		android:paddingTop="2dp" />
+
+	<TextView
 		android:id="@+id/archiveItemDepositText"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"

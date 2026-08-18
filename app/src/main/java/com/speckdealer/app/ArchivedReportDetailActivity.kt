@@ -1,13 +1,17 @@
 package com.speckdealer.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.speckdealer.app.data.ArchivedDailyReport
 import com.speckdealer.app.data.ArchivedDailyReportStorage
 import com.speckdealer.app.data.DataModeAwareStorageFactory
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -16,6 +20,15 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 
 	private lateinit var archiveStorage: ArchivedDailyReportStorage
 	private var currentReport: ArchivedDailyReport? = null
+	private var pendingPdfFile: File? = null
+	private val savePdfLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+		val uri = result.data?.data
+		if (result.resultCode != RESULT_OK || uri == null) {
+			pendingPdfFile = null
+			return@registerForActivityResult
+		}
+		savePdfToUri(uri)
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -25,7 +38,9 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 		archiveStorage = DataModeAwareStorageFactory.archivedDailyReportStorage(this, dataMode)
 
 		findViewById<Button>(R.id.archiveDetailCloseButton).setOnClickListener { finish() }
-		findViewById<Button>(R.id.archiveExportPdfButton).setOnClickListener { exportPdf() }
+		findViewById<Button>(R.id.archiveExportPdfButton).setOnClickListener { generatePdfOnly() }
+		findViewById<Button>(R.id.archiveSavePdfButton).setOnClickListener { exportPdfToLocalStorage() }
+		findViewById<Button>(R.id.archiveSharePdfButton).setOnClickListener { sharePdf() }
 
 		loadReport()
 	}
@@ -101,14 +116,56 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 		}
 	}
 
-	private fun exportPdf() {
+	private fun generatePdfOnly() {
+		val report = currentReport ?: return
+		runCatching {
+			ArchivedReportPdfExporter.export(this, report)
+			Snackbar.make(findViewById(android.R.id.content), "PDF wurde erzeugt.", Snackbar.LENGTH_LONG).show()
+		}.onFailure {
+			Snackbar.make(findViewById(android.R.id.content), "PDF-Export fehlgeschlagen.", Snackbar.LENGTH_LONG).show()
+		}
+	}
+
+	private fun exportPdfToLocalStorage() {
+		val report = currentReport ?: return
+		runCatching {
+			val file = ArchivedReportPdfExporter.export(this, report)
+			pendingPdfFile = file
+			val createIntent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+				addCategory(Intent.CATEGORY_OPENABLE)
+				type = "application/pdf"
+				putExtra(Intent.EXTRA_TITLE, ArchivedReportPdfExporter.buildSuggestedFileName(report))
+			}
+			savePdfLauncher.launch(createIntent)
+		}.onFailure {
+			pendingPdfFile = null
+			Snackbar.make(findViewById(android.R.id.content), "PDF konnte nicht vorbereitet werden.", Snackbar.LENGTH_LONG).show()
+		}
+	}
+
+	private fun savePdfToUri(uri: Uri) {
+		val file = pendingPdfFile ?: return
+		runCatching {
+			contentResolver.openOutputStream(uri)?.use { output ->
+				file.inputStream().use { input -> input.copyTo(output) }
+			} ?: throw IllegalStateException("Ausgabeziel konnte nicht geöffnet werden")
+			file.delete()
+			Snackbar.make(findViewById(android.R.id.content), "PDF wurde erfolgreich gespeichert.", Snackbar.LENGTH_LONG).show()
+		}.onFailure {
+			Snackbar.make(findViewById(android.R.id.content), "PDF konnte nicht gespeichert werden.", Snackbar.LENGTH_LONG).show()
+		}.also {
+			pendingPdfFile = null
+		}
+	}
+
+	private fun sharePdf() {
 		val report = currentReport ?: return
 		runCatching {
 			val file = ArchivedReportPdfExporter.export(this, report)
 			val shareIntent = ArchivedReportPdfExporter.createShareIntent(this, file)
-			startActivity(android.content.Intent.createChooser(shareIntent, "PDF teilen"))
+			startActivity(Intent.createChooser(shareIntent, "PDF teilen"))
 		}.onFailure {
-			Snackbar.make(findViewById(android.R.id.content), "PDF-Export fehlgeschlagen.", Snackbar.LENGTH_LONG).show()
+			Snackbar.make(findViewById(android.R.id.content), "PDF-Teilen fehlgeschlagen.", Snackbar.LENGTH_LONG).show()
 		}
 	}
 

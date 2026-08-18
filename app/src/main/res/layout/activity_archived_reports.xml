@@ -19,7 +19,7 @@
 		android:id="@+id/archiveEmptyStateText"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:text="Noch keine archivierten Tagesabschlüsse vorhanden."
+		android:text="Noch keine Tagesabschlüsse archiviert."
 		android:textColor="#FFFFFF"
 		android:textSize="18sp"
 		android:visibility="gone"

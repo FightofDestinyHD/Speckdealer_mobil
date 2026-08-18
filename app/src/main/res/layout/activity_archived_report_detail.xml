@@ -84,24 +84,40 @@
 	<LinearLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:orientation="horizontal"
+		android:orientation="vertical"
 		android:paddingTop="10dp">
 
 		<Button
 			android:id="@+id/archiveExportPdfButton"
-			android:layout_width="0dp"
+			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:layout_marginEnd="8dp"
 			android:backgroundTint="#1565C0"
 			android:text="Als PDF exportieren"
 			android:textColor="#FFFFFF" />
 
 		<Button
-			android:id="@+id/archiveDetailCloseButton"
-			android:layout_width="0dp"
+			android:id="@+id/archiveSavePdfButton"
+			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_weight="1"
+			android:layout_marginTop="8dp"
+			android:backgroundTint="#2E7D32"
+			android:text="PDF lokal speichern"
+			android:textColor="#FFFFFF" />
+
+		<Button
+			android:id="@+id/archiveSharePdfButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:backgroundTint="#6A1B9A"
+			android:text="PDF teilen"
+			android:textColor="#FFFFFF" />
+
+		<Button
+			android:id="@+id/archiveDetailCloseButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
 			android:backgroundTint="#1B5E20"
 			android:text="Schließen"
 			android:textColor="#FFFFFF" />

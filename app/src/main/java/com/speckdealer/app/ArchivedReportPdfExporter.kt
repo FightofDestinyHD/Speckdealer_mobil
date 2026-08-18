@@ -119,4 +119,9 @@ object ArchivedReportPdfExporter {
 		putExtra(android.content.Intent.EXTRA_STREAM, uri)
 		addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
 	}
+
+	fun buildSuggestedFileName(report: ArchivedDailyReport): String {
+		val safeDate = report.businessDate.replace(".", "-")
+		return "Speckdealer_Tagesabschluss_${safeDate}.pdf"
+	}
 }

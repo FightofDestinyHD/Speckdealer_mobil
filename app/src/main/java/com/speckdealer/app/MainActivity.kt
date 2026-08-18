@@ -141,6 +141,7 @@ class MainActivity : AppCompatActivity() {
 			val settingsTile = findViewById<View?>(R.id.settingsTile)
 			val depositReturnTile = findViewById<View>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
+			val archiveTile = findViewById<View?>(R.id.archiveTile)
 			val devModeEntry = findViewById<TextView?>(R.id.devModeEntry)
 
 			if (salesTile == null) {
@@ -154,6 +155,9 @@ class MainActivity : AppCompatActivity() {
 			}
 			if (updateTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: updateTile fehlt im Layout")
+			}
+			if (archiveTile == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: archiveTile fehlt im Layout")
 			}
 			if (devModeEntry == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: devModeEntry fehlt im Layout")
@@ -210,6 +214,10 @@ class MainActivity : AppCompatActivity() {
 
 			depositReturnTile.setOnClickListener {
 				openDepositReturn()
+			}
+
+			archiveTile?.setOnClickListener {
+				startActivity(Intent(this, ArchivedReportsActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 			}
 
 			devModeEntry?.let { entry ->
