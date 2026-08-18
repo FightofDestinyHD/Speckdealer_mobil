@@ -2,6 +2,8 @@ package com.speckdealer.app.data
 
 import android.content.Context
 import com.speckdealer.app.AppDataMode
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class OrderSyncRepository(
 	private val context: Context,
@@ -10,8 +12,11 @@ class OrderSyncRepository(
 	private val storage: OrderStorage = DataModeAwareStorageFactory.orderStorage(context, dataMode)
 	private val deviceId: String = DeviceIdentityStore.getOrCreate(context, dataMode)
 	private val isTestData: Boolean = AppDataMode.isDev(dataMode)
+	private val ordersFlow = MutableStateFlow(storage.loadAll().toList())
 
 	fun localDeviceId(): String = deviceId
+
+	fun orders(): StateFlow<List<OrderRecord>> = ordersFlow
 
 	fun loadAll(): List<OrderRecord> = storage.loadAll()
 
@@ -29,6 +34,7 @@ class OrderSyncRepository(
 			}
 		if (sanitized.isNotEmpty()) {
 			storage.addAll(sanitized)
+			emitCurrentOrders()
 		}
 	}
 
@@ -37,6 +43,7 @@ class OrderSyncRepository(
 		val order = storage.loadAll().firstOrNull { it.id == orderId } ?: return null
 		val updated = order.withStatus(status).copy(sourceDeviceId = deviceId)
 		storage.addAll(listOf(updated))
+		emitCurrentOrders()
 		return updated
 	}
 
@@ -55,5 +62,13 @@ class OrderSyncRepository(
 				isTestData = order.isTestData || isTestData
 			)
 		}
+	}
+
+	fun notifyLocalChange() {
+		emitCurrentOrders()
+	}
+
+	private fun emitCurrentOrders() {
+		ordersFlow.value = storage.loadAll().toList()
 	}
 }

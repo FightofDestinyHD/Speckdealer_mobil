@@ -58,12 +58,14 @@ class CheckoutService(
 	private val beginJournal: (String) -> BeginJournalResult,
 	private val markJournalCompleted: (String, List<String>, List<String>) -> Unit,
 	private val markJournalFailed: (String, String) -> Unit,
-	private val loadJournal: (String) -> CheckoutJournalEntry?
+	private val loadJournal: (String) -> CheckoutJournalEntry?,
+	private val onOrdersPersisted: ((List<OrderRecord>) -> Unit)? = null
 ) {
 	constructor(
 		dailySalesStorage: DailySalesStorage,
 		orderStorage: OrderStorage,
-		journalStorage: CheckoutJournalStorage
+		journalStorage: CheckoutJournalStorage,
+		onOrdersPersisted: ((List<OrderRecord>) -> Unit)? = null
 	) : this(
 		appendSales = { dailySalesStorage.appendRecords(it) },
 		appendOrders = { orderStorage.addAll(it) },
@@ -72,7 +74,8 @@ class CheckoutService(
 		beginJournal = { txId -> journalStorage.beginIfMissing(txId) },
 		markJournalCompleted = { txId, saleIds, orderIds -> journalStorage.markCompleted(txId, saleIds, orderIds) },
 		markJournalFailed = { txId, error -> journalStorage.markFailed(txId, error) },
-		loadJournal = { txId -> journalStorage.load(txId) }
+		loadJournal = { txId -> journalStorage.load(txId) },
+		onOrdersPersisted = onOrdersPersisted
 	)
 
 	constructor(
@@ -86,7 +89,8 @@ class CheckoutService(
 		beginJournal = { BeginJournalResult(createdNew = true, existingEntry = null) },
 		markJournalCompleted = { _, _, _ -> Unit },
 		markJournalFailed = { _, _ -> Unit },
-		loadJournal = { null }
+		loadJournal = { null },
+		onOrdersPersisted = null
 	)
 
 	fun checkout(
@@ -230,6 +234,7 @@ class CheckoutService(
 			}
 			if (ordersToPersist.isNotEmpty()) {
 				appendOrders(ordersToPersist)
+				onOrdersPersisted?.invoke(ordersToPersist)
 			}
 			markJournalCompleted(
 				transactionId,

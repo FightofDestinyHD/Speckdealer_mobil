@@ -17,6 +17,7 @@ import com.google.android.material.tabs.TabLayout
 import com.speckdealer.app.data.DailySalesStorage
 import com.speckdealer.app.data.OrderStorage
 import com.speckdealer.app.data.CheckoutJournalStorage
+import com.speckdealer.app.data.LocalOrderSyncRegistry
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
@@ -77,10 +78,16 @@ class SalesActivity : AppCompatActivity() {
 			val dailySalesStorage = DataModeAwareStorageFactory.dailySalesStorage(this, dataMode)
 			val orderStorage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
 			checkoutJournalStorage = DataModeAwareStorageFactory.checkoutJournalStorage(this, dataMode)
+			val syncManager = LocalOrderSyncRegistry.get(this, dataMode)
 			checkoutService = CheckoutService(
 				dailySalesStorage = dailySalesStorage,
 				orderStorage = orderStorage,
-				journalStorage = checkoutJournalStorage
+				journalStorage = checkoutJournalStorage,
+				onOrdersPersisted = {
+					if (it.isNotEmpty()) {
+						syncManager.syncNow()
+					}
+				}
 			)
 			tabLayout = findViewById(R.id.salesTabLayout)
 			cartTotalText = findViewById(R.id.cartTotalText)

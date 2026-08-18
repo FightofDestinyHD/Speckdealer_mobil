@@ -44,12 +44,21 @@ class MainActivity : AppCompatActivity() {
 	private data class ReleaseAsset(
 		val apkUrl: String,
 		val checksumUrl: String,
-		val assetName: String
+		val assetName: String,
+		val releaseTag: String,
+		val releaseName: String
 	)
 
 	private data class ApkValidationResult(
 		val isValid: Boolean,
-		val errorMessage: String? = null
+		val errorMessage: String? = null,
+		val diagnosticMessage: String
+	)
+
+	private data class InstalledAppMetadata(
+		val packageName: String,
+		val versionCode: Long,
+		val versionName: String
 	)
 
 	enum class DepositReturnType(
@@ -598,6 +607,9 @@ class MainActivity : AppCompatActivity() {
 
 	private fun startDownloadViaDownloadManager(releaseAsset: ReleaseAsset) {
 		val apkFile = File(cacheDir, "speckdealer-update.apk")
+		if (apkFile.exists()) {
+			runCatching { apkFile.delete() }
+		}
 
 		thread {
 			try {
@@ -640,6 +652,7 @@ class MainActivity : AppCompatActivity() {
 
 				val checksumValid = verifyApkChecksum(apkFile, releaseAsset.checksumUrl)
 				if (!checksumValid) {
+					StartupCrashLogger.logEvent(this@MainActivity, "Update-Checksum ungültig | release=${releaseAsset.releaseTag}/${releaseAsset.releaseName} | file=${releaseAsset.assetName}")
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
@@ -662,20 +675,23 @@ class MainActivity : AppCompatActivity() {
 					return@thread
 				}
 
-				val validation = validateApkForUpdate(apkMeta)
+				val validation = validateApkForUpdate(apkMeta, releaseAsset)
 				if (!validation.isValid) {
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
-							validation.errorMessage ?: "APK-Validierung fehlgeschlagen.",
+							(validation.errorMessage ?: "APK-Validierung fehlgeschlagen.") + "\n" + validation.diagnosticMessage,
 							Snackbar.LENGTH_LONG
 						).show()
 					}
+					StartupCrashLogger.logEvent(this@MainActivity, "Update-Validierung abgelehnt: ${validation.errorMessage}; ${validation.diagnosticMessage}")
 					return@thread
 				}
 
+				StartupCrashLogger.logEvent(this@MainActivity, "Update-Validierung ok: ${validation.diagnosticMessage}")
 				val signatureValid = verifyApkSignatureMatchesInstalled(apkFile)
 				if (!signatureValid) {
+					StartupCrashLogger.logEvent(this@MainActivity, "Update-Signaturfehler | release=${releaseAsset.releaseTag}/${releaseAsset.releaseName} | file=${releaseAsset.assetName}")
 					runOnUiThread {
 						Snackbar.make(
 							findViewById(android.R.id.content),
@@ -773,6 +789,8 @@ class MainActivity : AppCompatActivity() {
 		connection.disconnect()
 
 		val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+		val releaseTag = root.optString("tag_name", "")
+		val releaseName = root.optString("name", "")
 		val assets = root.optJSONArray("assets") ?: return null
 		var apkUrl: String? = null
 		var apkName: String? = null
@@ -800,7 +818,13 @@ class MainActivity : AppCompatActivity() {
 			}
 		}
 		if (checksumUrl.isNullOrBlank()) return null
-		return ReleaseAsset(apkUrl = apkUrl, checksumUrl = checksumUrl, assetName = apkName)
+		return ReleaseAsset(
+			apkUrl = apkUrl,
+			checksumUrl = checksumUrl,
+			assetName = apkName,
+			releaseTag = releaseTag,
+			releaseName = releaseName
+		)
 	}
 
 	private fun verifyApkChecksum(apkFile: File, checksumUrl: String): Boolean {
@@ -835,25 +859,73 @@ class MainActivity : AppCompatActivity() {
 		return packageManager.getPackageArchiveInfo(apkFile.absolutePath, flags)
 	}
 
-	private fun validateApkForUpdate(apkInfo: PackageInfo): ApkValidationResult {
+	private fun validateApkForUpdate(apkInfo: PackageInfo, releaseAsset: ReleaseAsset): ApkValidationResult {
+		val installedInfo = installedAppMetadata()
 		val apkPackage = apkInfo.packageName.orEmpty()
+		val apkVersionCode = PackageInfoCompat.getLongVersionCode(apkInfo)
+		val apkVersionName = apkInfo.versionName.orEmpty().ifBlank { "(leer)" }
+		val comparison = when {
+			apkVersionCode > installedInfo.versionCode -> "DOWNLOADED_NEWER"
+			apkVersionCode == installedInfo.versionCode -> "EQUAL_VERSION"
+			else -> "DOWNLOADED_OLDER"
+		}
+		val diagnostic = buildString {
+			append("GitHub-Tag/Release: ")
+			append(releaseAsset.releaseTag.ifBlank { "(leer)" })
+			append(" / ")
+			append(releaseAsset.releaseName.ifBlank { "(leer)" })
+			append('\n')
+			append("Download-Datei: ${releaseAsset.assetName}")
+			append('\n')
+			append("APK-Paketname: $apkPackage")
+			append('\n')
+			append("APK-versionCode: $apkVersionCode")
+			append('\n')
+			append("APK-versionName: $apkVersionName")
+			append('\n')
+			append("Installierter Paketname: ${installedInfo.packageName}")
+			append('\n')
+			append("Installierter versionCode: ${installedInfo.versionCode}")
+			append('\n')
+			append("Installierter versionName: ${installedInfo.versionName}")
+			append('\n')
+			append("Vergleichsergebnis: $comparison")
+		}
 		if (apkPackage != packageName) {
 			return ApkValidationResult(
 				isValid = false,
-				errorMessage = "Die APK gehört nicht zu com.speckdealer.app."
+				errorMessage = "Die APK gehört nicht zu com.speckdealer.app.",
+				diagnosticMessage = diagnostic
 			)
 		}
-		val installedVersionCode = runCatching {
-			PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
-		}.getOrDefault(Long.MAX_VALUE)
-		val apkVersionCode = PackageInfoCompat.getLongVersionCode(apkInfo)
-		if (apkVersionCode <= installedVersionCode) {
+		if (apkVersionCode <= installedInfo.versionCode) {
+			val message = if (apkVersionCode == installedInfo.versionCode) {
+				"Installiert: versionCode ${installedInfo.versionCode}, heruntergeladene APK: versionCode $apkVersionCode. Das GitHub-Release ist falsch veröffentlicht."
+			} else {
+				"Installiert: versionCode ${installedInfo.versionCode}, heruntergeladene APK: versionCode $apkVersionCode."
+			}
 			return ApkValidationResult(
 				isValid = false,
-				errorMessage = "Keine neuere APK verfügbar. Installiert: $installedVersionCode, verfügbar: $apkVersionCode."
+				errorMessage = message,
+				diagnosticMessage = diagnostic
 			)
 		}
-		return ApkValidationResult(isValid = true)
+		return ApkValidationResult(
+			isValid = true,
+			errorMessage = null,
+			diagnosticMessage = diagnostic
+		)
+	}
+
+	private fun installedAppMetadata(): InstalledAppMetadata {
+		val installedPackageInfo = packageManager.getPackageInfoCompat(packageName)
+		val installedVersionCode = installedPackageInfo?.let { PackageInfoCompat.getLongVersionCode(it) } ?: -1L
+		val installedVersionName = installedPackageInfo?.versionName.orEmpty().ifBlank { "(leer)" }
+		return InstalledAppMetadata(
+			packageName = packageName,
+			versionCode = installedVersionCode,
+			versionName = installedVersionName
+		)
 	}
 
 	private fun sha256OfFile(file: File): String {

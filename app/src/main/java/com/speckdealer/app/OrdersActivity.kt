@@ -17,6 +17,7 @@ import com.speckdealer.app.data.LocalOrderSyncRegistry
 import com.speckdealer.app.data.OrderRecord
 import com.speckdealer.app.data.OrderStatus
 import com.speckdealer.app.data.OrderStorage
+import com.speckdealer.app.data.OrderSyncRepositoryRegistry
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -35,6 +36,7 @@ class OrdersActivity : AppCompatActivity() {
 
 	dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
 	storage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
+	val syncRepository = OrderSyncRepositoryRegistry.get(this, dataMode)
 	emptyText = findViewById(R.id.ordersEmptyText)
 	syncStatusText = findViewById(R.id.ordersSyncStatusText)
 	syncManager = runCatching { LocalOrderSyncRegistry.get(this, dataMode) }.getOrNull()
@@ -42,8 +44,7 @@ class OrdersActivity : AppCompatActivity() {
 	adapter = OrderAdapter(
 		orders = storage.loadAll().filter { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name }.toMutableList(),
 		onDone = { order ->
-			val completed = order.withStatus(OrderStatus.COMPLETED)
-			storage.addAll(listOf(completed))
+			syncRepository.markOrderStatus(order.id, OrderStatus.COMPLETED)
 			adapter.remove(order.id)
 			updateEmptyState()
 			lifecycleScope.launch {
@@ -59,13 +60,25 @@ class OrdersActivity : AppCompatActivity() {
 
 		findViewById<Button>(R.id.ordersCloseButton).setOnClickListener { finish() }
 
+		lifecycleScope.launch {
+			syncRepository.orders().collect { orders ->
+				val visible = orders.filter { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name }
+				adapter.replaceAll(visible)
+				updateEmptyState()
+			}
+		}
+		lifecycleScope.launch {
+			syncManager?.state()?.collect {
+				refreshSyncStatus()
+			}
+		}
+
 		updateEmptyState()
 	}
 
 	override fun onResume() {
 		super.onResume()
-		adapter.replaceAll(storage.loadAll().filter { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name })
-		updateEmptyState()
+		syncManager?.syncNow()
 		refreshSyncStatus()
 	}
 

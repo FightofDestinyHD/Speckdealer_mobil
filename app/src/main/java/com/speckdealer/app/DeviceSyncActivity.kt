@@ -53,6 +53,13 @@ class DeviceSyncActivity : AppCompatActivity() {
 					OrderSyncStatus.ERROR -> "Fehler"
 				}
 				statusText.text = "$statusLabel${if (state.message.isNotBlank()) " – ${state.message}" else ""}"
+				if (state.role == com.speckdealer.app.data.SyncRole.HOST && state.host.isNotBlank() && state.port > 0) {
+					hostInput.setText(state.host)
+					portInput.setText(state.port.toString())
+					if (state.pairingCode.isNotBlank()) {
+						codeInput.setText(state.pairingCode)
+					}
+				}
 			}
 		}
 	}
