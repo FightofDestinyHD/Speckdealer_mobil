@@ -57,14 +57,15 @@ data class BeginJournalResult(
 	val existingEntry: CheckoutJournalEntry?
 )
 
-class CheckoutJournalStorage(context: Context) {
+class CheckoutJournalStorage(context: Context, namespaceSuffix: String = "prod") {
 
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_checkout_journal_dev" else "speckdealer_checkout_journal"
 	private val prefs: SharedPreferences =
-		context.getSharedPreferences("speckdealer_checkout_journal", Context.MODE_PRIVATE)
+		context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = KEY_RECORDS,
-		lockName = "speckdealer_checkout_journal:records"
+		lockName = "$prefsName:records"
 	)
 	private val lock = Any()
 

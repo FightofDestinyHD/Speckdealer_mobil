@@ -7,13 +7,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 
-class ArticleStorage(context: Context) {
+class ArticleStorage(context: Context, namespaceSuffix: String = "prod") {
 
-	private val prefs: SharedPreferences = context.getSharedPreferences("speckdealer_articles", Context.MODE_PRIVATE)
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_articles_dev" else "speckdealer_articles"
+	private val prefs: SharedPreferences = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = "articles",
-		lockName = "speckdealer_articles:articles"
+		lockName = "$prefsName:articles"
 	)
 	private val lock = Any()
 	private val articlesFlow = MutableStateFlow<List<ArticleEntity>>(emptyList())

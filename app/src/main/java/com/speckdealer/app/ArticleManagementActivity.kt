@@ -83,7 +83,8 @@ class ArticleManagementActivity : AppCompatActivity() {
 
 		updateOperationState(UiOperationState.Loading)
 		runCatching {
-			repository = AppGraph.repository(this)
+			val dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+			repository = AppGraph.repository(this, dataMode)
 			setupViews()
 			setupRecyclerView()
 			setupCategoryButtons()

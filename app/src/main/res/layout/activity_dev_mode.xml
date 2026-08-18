@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="@drawable/app_background"
+	android:padding="16dp">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical">
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="DEV-MODUS"
+			android:textColor="#FFFFFF"
+			android:textSize="28sp"
+			android:textStyle="bold" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:text="Testdaten und Testfunktionen sind aktiv."
+			android:textColor="#FFFFFF"
+			android:textSize="18sp" />
+
+		<TextView
+			android:id="@+id/devDisclaimerText"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:textColor="#FFFFFF"
+			android:textSize="14sp" />
+
+		<Button android:id="@+id/devStartTestSaleButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="1. Testverkauf starten" />
+		<Button android:id="@+id/devLoadTestArticlesButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="2. Testartikel anlegen oder laden" />
+		<Button android:id="@+id/devDepositBottleButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="3. Testpfandrückgabe Flasche" />
+		<Button android:id="@+id/devDepositGlassButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="4. Testpfandrückgabe Glas" />
+		<Button android:id="@+id/devDepositPlateButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="5. Testpfandrückgabe Teller" />
+		<Button android:id="@+id/devGenerateDailyDataButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="6. Testdaten für Tagesabschluss erzeugen" />
+		<Button android:id="@+id/devDailyReportNoArchiveButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="7. Tagesabschluss ohne Archivierung testen" />
+		<Button android:id="@+id/devDailyReportArchiveButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="8. Tagesabschluss mit Archivierung testen" />
+		<Button android:id="@+id/devOpenArchiveButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="9. Archivierten Tagesabschluss öffnen" />
+		<Button android:id="@+id/devTestPdfExportButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="10. PDF-Export eines Archivdatensatzes testen" />
+		<Button android:id="@+id/devShowDataButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="11. Testdaten anzeigen" />
+		<Button android:id="@+id/devClearDataButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="12. Testdaten löschen" />
+		<Button android:id="@+id/devExitButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="13. Dev-Modus verlassen" />
+	</LinearLayout>
+
+</ScrollView>

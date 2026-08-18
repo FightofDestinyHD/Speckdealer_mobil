@@ -3,13 +3,14 @@ package com.speckdealer.app.data
 import android.content.Context
 import org.json.JSONArray
 
-class OrderStorage(context: Context) {
-	private val prefs = context.getSharedPreferences("speckdealer_orders", Context.MODE_PRIVATE)
+class OrderStorage(context: Context, namespaceSuffix: String = "prod") {
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_orders_dev" else "speckdealer_orders"
+	private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val key = "open_orders"
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = key,
-		lockName = "speckdealer_orders:open_orders"
+		lockName = "$prefsName:open_orders"
 	)
 	private val lock = Any()
 

@@ -4,14 +4,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 
-class DepositMovementStorage(context: Context) {
+class DepositMovementStorage(context: Context, namespaceSuffix: String = "prod") {
 
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_deposit_movements_dev" else "speckdealer_deposit_movements"
 	private val prefs: SharedPreferences =
-		context.getSharedPreferences("speckdealer_deposit_movements", Context.MODE_PRIVATE)
+		context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = KEY_RECORDS,
-		lockName = "speckdealer_deposit_movements:records"
+		lockName = "$prefsName:records"
 	)
 	private val lock = Any()
 

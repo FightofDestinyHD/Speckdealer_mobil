@@ -9,6 +9,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.speckdealer.app.data.DataModeAwareStorageFactory
 import com.speckdealer.app.data.OrderRecord
 import com.speckdealer.app.data.OrderStorage
 import java.text.NumberFormat
@@ -24,7 +25,8 @@ class OrdersActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_orders)
 
-		storage = OrderStorage(this)
+		val dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+		storage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
 		emptyText = findViewById(R.id.ordersEmptyText)
 
 		adapter = OrderAdapter(

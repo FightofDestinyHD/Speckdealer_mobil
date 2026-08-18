@@ -4,14 +4,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 
-class ArchivedDailyReportStorage(context: Context) {
+class ArchivedDailyReportStorage(context: Context, namespaceSuffix: String = "prod") {
 
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_archived_daily_reports_dev" else "speckdealer_archived_daily_reports"
 	private val prefs: SharedPreferences =
-		context.getSharedPreferences("speckdealer_archived_daily_reports", Context.MODE_PRIVATE)
+		context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = KEY_ARCHIVE,
-		lockName = "speckdealer_archived_daily_reports:archive"
+		lockName = "$prefsName:archive"
 	)
 	private val lock = Any()
 
@@ -41,6 +42,15 @@ class ArchivedDailyReportStorage(context: Context) {
 	fun loadAll(): List<ArchivedDailyReport> = synchronized(lock) {
 		val read = store.readArray()
 		loadFromArray(read.array)
+	}
+
+	fun clearAll() {
+		synchronized(lock) {
+			val result = store.writeArray(JSONArray())
+			if (!result.success) {
+				throw IllegalStateException(result.errorMessage ?: "Archivdaten konnten nicht gelöscht werden")
+			}
+		}
 	}
 
 	fun findByCompletionTransactionId(transactionId: String): ArchivedDailyReport? {

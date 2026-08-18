@@ -6,6 +6,21 @@
 	android:background="@drawable/app_background"
 	android:padding="24dp">
 
+	<TextView
+		android:id="@+id/devModeEntry"
+		android:layout_width="64dp"
+		android:layout_height="40dp"
+		android:background="@drawable/menu_tile_background"
+		android:clickable="true"
+		android:contentDescription="Dev-Modus öffnen"
+		android:focusable="true"
+		android:foreground="?attr/selectableItemBackground"
+		android:gravity="center"
+		android:text="DEV"
+		android:textStyle="bold"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent" />
+
 	<LinearLayout
 		android:id="@+id/welcomeContainer"
 		android:layout_width="wrap_content"

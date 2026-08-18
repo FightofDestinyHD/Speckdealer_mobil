@@ -21,6 +21,7 @@ import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
 import com.speckdealer.app.data.CategoryType
+import com.speckdealer.app.data.DataModeAwareStorageFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
@@ -55,6 +56,7 @@ class SalesActivity : AppCompatActivity() {
 	private lateinit var checkoutJournalStorage: CheckoutJournalStorage
 	private var observeJob: Job? = null
 	private var selectedCategory: CategoryType = CategoryType.WEIN
+	private lateinit var dataMode: String
 	private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.GERMANY)
 	private val cartItems = mutableListOf<CartEntry>()
 	private lateinit var cartClearButton: Button
@@ -70,10 +72,11 @@ class SalesActivity : AppCompatActivity() {
 
 		updateOperationState(UiOperationState.Loading)
 		runCatching {
-			repository = AppGraph.repository(this)
-			val dailySalesStorage = DailySalesStorage(this)
-			val orderStorage = OrderStorage(this)
-			checkoutJournalStorage = CheckoutJournalStorage(this)
+			dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+			repository = AppGraph.repository(this, dataMode)
+			val dailySalesStorage = DataModeAwareStorageFactory.dailySalesStorage(this, dataMode)
+			val orderStorage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
+			checkoutJournalStorage = DataModeAwareStorageFactory.checkoutJournalStorage(this, dataMode)
 			checkoutService = CheckoutService(
 				dailySalesStorage = dailySalesStorage,
 				orderStorage = orderStorage,

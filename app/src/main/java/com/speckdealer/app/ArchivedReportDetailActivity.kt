@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.speckdealer.app.data.ArchivedDailyReport
 import com.speckdealer.app.data.ArchivedDailyReportStorage
+import com.speckdealer.app.data.DataModeAwareStorageFactory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -20,7 +21,8 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_archived_report_detail)
 
-		archiveStorage = ArchivedDailyReportStorage(this)
+		val dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+		archiveStorage = DataModeAwareStorageFactory.archivedDailyReportStorage(this, dataMode)
 
 		findViewById<Button>(R.id.archiveDetailCloseButton).setOnClickListener { finish() }
 		findViewById<Button>(R.id.archiveExportPdfButton).setOnClickListener { exportPdf() }

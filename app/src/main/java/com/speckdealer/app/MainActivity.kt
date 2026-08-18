@@ -7,10 +7,12 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
 import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
@@ -106,6 +108,7 @@ class MainActivity : AppCompatActivity() {
 		}
 
 		try {
+			DevModeConfig.setDevEntryEnabled(BuildConfig.ENABLE_DEV_MODE)
 			setupMenuTiles()
 			showChangelogIfUpdated()
 			startIntroTransition()
@@ -138,6 +141,7 @@ class MainActivity : AppCompatActivity() {
 			val settingsTile = findViewById<View?>(R.id.settingsTile)
 			val depositReturnTile = findViewById<View>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
+			val devModeEntry = findViewById<TextView?>(R.id.devModeEntry)
 
 			if (salesTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: salesTile fehlt im Layout")
@@ -151,10 +155,13 @@ class MainActivity : AppCompatActivity() {
 			if (updateTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: updateTile fehlt im Layout")
 			}
+			if (devModeEntry == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: devModeEntry fehlt im Layout")
+			}
 
 			salesTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, SalesActivity::class.java))
+					startActivity(Intent(this, SalesActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "SalesActivity öffnen Fehler", e)
 					e.printStackTrace()
@@ -164,7 +171,7 @@ class MainActivity : AppCompatActivity() {
 
 			ordersTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, OrdersActivity::class.java))
+					startActivity(Intent(this, OrdersActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
@@ -173,7 +180,7 @@ class MainActivity : AppCompatActivity() {
 
 			articleManagementTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, ArticleManagementActivity::class.java))
+					startActivity(Intent(this, ArticleManagementActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "ArticleManagementActivity öffnen Fehler", e)
 					e.printStackTrace()
@@ -183,7 +190,7 @@ class MainActivity : AppCompatActivity() {
 
 			dailyReportTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, DailyReportActivity::class.java))
+					startActivity(Intent(this, DailyReportActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "DailyReportActivity öffnen Fehler", e)
 					e.printStackTrace()
@@ -193,7 +200,7 @@ class MainActivity : AppCompatActivity() {
 
 			settingsTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, ArticleManagementActivity::class.java))
+					startActivity(Intent(this, ArticleManagementActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "SettingsTile öffnen Fehler", e)
 					e.printStackTrace()
@@ -203,6 +210,11 @@ class MainActivity : AppCompatActivity() {
 
 			depositReturnTile.setOnClickListener {
 				openDepositReturn()
+			}
+
+			devModeEntry?.let { entry ->
+				entry.visibility = if (DevModeConfig.isDevEntryEnabled) View.VISIBLE else View.GONE
+				entry.setOnClickListener { showDevModePasswordDialog() }
 			}
 
 			updateTile?.setOnClickListener {
@@ -223,6 +235,64 @@ class MainActivity : AppCompatActivity() {
 			StartupCrashLogger.logEvent(this, "setupMenuTiles Fehler", e)
 			e.printStackTrace()
 		}
+	}
+
+	private fun showDevModePasswordDialog() {
+		if (!DevModeConfig.isDevEntryEnabled) {
+			Snackbar.make(findViewById(android.R.id.content), "Diese Funktion ist in diesem Build deaktiviert.", Snackbar.LENGTH_LONG).show()
+			return
+		}
+
+		val input = EditText(this).apply {
+			inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+			hint = "Passwort"
+		}
+		val dialog = AlertDialog.Builder(this)
+			.setTitle("Dev-Modus")
+			.setMessage("Passwort eingeben")
+			.setView(input)
+			.setPositiveButton("Öffnen", null)
+			.setNegativeButton("Abbrechen", null)
+			.create()
+
+		dialog.setOnShowListener {
+			val openButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+			openButton.setOnClickListener {
+				when (val result = DevModeConfig.checkPassword(input.text?.toString().orEmpty())) {
+					is DevPasswordCheckResult.Success -> {
+						DevModeConfig.activateSession()
+						dialog.dismiss()
+						startActivity(Intent(this, DevModeActivity::class.java))
+					}
+					is DevPasswordCheckResult.Empty -> {
+						input.error = "Bitte Passwort eingeben"
+					}
+					is DevPasswordCheckResult.Invalid -> {
+						input.error = "Passwort ist nicht korrekt"
+					}
+					is DevPasswordCheckResult.Locked -> {
+						openButton.isEnabled = false
+						startLockCountdown(openButton, result.remainingMs)
+					}
+				}
+			}
+		}
+
+		dialog.show()
+	}
+
+	private fun startLockCountdown(button: android.widget.Button, remainingMs: Long) {
+		object : CountDownTimer(remainingMs, 1000L) {
+			override fun onTick(millisUntilFinished: Long) {
+				val seconds = (millisUntilFinished / 1000L).coerceAtLeast(1L)
+				button.text = "Warten ($seconds s)"
+			}
+
+			override fun onFinish() {
+				button.text = "Öffnen"
+				button.isEnabled = true
+			}
+		}.start()
 	}
 
 	private fun showChangelogIfUpdated() {

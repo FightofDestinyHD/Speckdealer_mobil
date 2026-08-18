@@ -210,7 +210,7 @@ class CheckoutService(
 		val existingSales = loadSalesByTransaction(transactionId)
 		val existingOrders = loadOrdersByTransaction(transactionId)
 		if (existingSales.size > sales.size || existingOrders.size > orders.size) {
-			markJournalFailed(transactionId, "Inkonsistente vorhandene Datensätze für transactionId=$transactionId")
+			markJournalFailed(transactionId, "Inkonsistente vorhandene Datensätze entdeckt")
 			throw IllegalStateException("Inkonsistente Persistenzdaten entdeckt. Bitte Wiederherstellung prüfen.")
 		}
 

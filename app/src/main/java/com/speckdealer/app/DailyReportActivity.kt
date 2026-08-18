@@ -10,6 +10,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.speckdealer.app.data.ArchivedDailyReport
 import com.speckdealer.app.data.ArchivedDailyReportStorage
 import com.speckdealer.app.data.DailySalesStorage
+import com.speckdealer.app.data.DataModeAwareStorageFactory
 import com.speckdealer.app.data.DepositMovementStorage
 import com.speckdealer.app.data.OrderStorage
 import java.text.SimpleDateFormat
@@ -23,22 +24,25 @@ class DailyReportActivity : AppCompatActivity() {
 	private lateinit var orderStorage: OrderStorage
 	private lateinit var archiveStorage: ArchivedDailyReportStorage
 	private lateinit var completionPrefs: android.content.SharedPreferences
+	private lateinit var dataMode: String
 	private var completionInProgress = false
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_daily_report)
 
-		salesStorage = DailySalesStorage(this)
-		depositStorage = DepositMovementStorage(this)
-		orderStorage = OrderStorage(this)
-		archiveStorage = ArchivedDailyReportStorage(this)
-		completionPrefs = getSharedPreferences("speckdealer_day_completion", MODE_PRIVATE)
+		dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+		salesStorage = DataModeAwareStorageFactory.dailySalesStorage(this, dataMode)
+		depositStorage = DataModeAwareStorageFactory.depositMovementStorage(this, dataMode)
+		orderStorage = DataModeAwareStorageFactory.orderStorage(this, dataMode)
+		archiveStorage = DataModeAwareStorageFactory.archivedDailyReportStorage(this, dataMode)
+		val completionPrefsName = if (AppDataMode.isDev(dataMode)) "speckdealer_day_completion_dev" else "speckdealer_day_completion"
+		completionPrefs = getSharedPreferences(completionPrefsName, MODE_PRIVATE)
 
 		findViewById<Button>(R.id.reportCloseButton).setOnClickListener { finish() }
 		findViewById<Button>(R.id.reportResetButton).setOnClickListener { confirmDayCompletionFlow() }
 		findViewById<Button>(R.id.reportArchiveButton).setOnClickListener {
-			startActivity(Intent(this, ArchivedReportsActivity::class.java))
+			startActivity(Intent(this, ArchivedReportsActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, dataMode))
 		}
 
 		buildReport()

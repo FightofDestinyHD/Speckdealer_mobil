@@ -9,16 +9,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.speckdealer.app.data.ArchivedDailyReportStorage
+import com.speckdealer.app.data.DataModeAwareStorageFactory
 
 class ArchivedReportsActivity : AppCompatActivity() {
 
 	private lateinit var archiveStorage: ArchivedDailyReportStorage
+	private lateinit var dataMode: String
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(R.layout.activity_archived_reports)
 
-		archiveStorage = ArchivedDailyReportStorage(this)
+		dataMode = AppDataMode.resolve(intent.getStringExtra(AppDataMode.EXTRA_DATA_MODE))
+		archiveStorage = DataModeAwareStorageFactory.archivedDailyReportStorage(this, dataMode)
 		findViewById<Button>(R.id.archiveCloseButton).setOnClickListener { finish() }
 
 		buildArchiveList()
@@ -33,6 +36,7 @@ class ArchivedReportsActivity : AppCompatActivity() {
 		recyclerView.adapter = ArchivedReportsAdapter(reports) { report ->
 			val intent = Intent(this, ArchivedReportDetailActivity::class.java)
 			intent.putExtra(ArchivedReportDetailActivity.EXTRA_ARCHIVE_ID, report.id)
+			intent.putExtra(AppDataMode.EXTRA_DATA_MODE, dataMode)
 			startActivity(intent)
 		}
 

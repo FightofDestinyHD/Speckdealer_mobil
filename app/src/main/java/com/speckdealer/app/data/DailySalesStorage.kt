@@ -8,14 +8,15 @@ import org.json.JSONArray
  * Persistiert alle Tages-Verkaufsdatensätze in SharedPreferences als JSON-Array.
  * Der Log kann per clearToday() zurückgesetzt werden (Tagesabschluss).
  */
-class DailySalesStorage(context: Context) {
+class DailySalesStorage(context: Context, namespaceSuffix: String = "prod") {
 
+	private val prefsName = if (namespaceSuffix == "dev") "speckdealer_daily_sales_dev" else "speckdealer_daily_sales"
 	private val prefs: SharedPreferences =
-		context.getSharedPreferences("speckdealer_daily_sales", Context.MODE_PRIVATE)
+		context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 	private val store = SafeJsonArrayPreferencesStore(
 		prefs = prefs,
 		key = KEY_RECORDS,
-		lockName = "speckdealer_daily_sales:sale_records"
+		lockName = "$prefsName:sale_records"
 	)
 	private val lock = Any()
 
