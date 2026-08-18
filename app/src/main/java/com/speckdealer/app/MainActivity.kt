@@ -840,7 +840,7 @@ class MainActivity : AppCompatActivity() {
 		if (apkVersionCode <= installedVersionCode) {
 			return ApkValidationResult(
 				isValid = false,
-				errorMessage = "Die neue Version ist nicht neuer als die installierte Version."
+				errorMessage = "Keine neuere APK verfügbar. Installiert: $installedVersionCode, verfügbar: $apkVersionCode."
 			)
 		}
 		return ApkValidationResult(isValid = true)
