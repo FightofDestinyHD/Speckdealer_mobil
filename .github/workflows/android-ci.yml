@@ -11,14 +11,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify release artifacts exist and are non-empty
+      - name: Verify local release artifacts exist
         run: |
           test -s release-artifacts/app-release.apk
           test -s release-artifacts/app-release.aab
           test -s release-artifacts/app-release.apk.sha256
           test -s release-artifacts/app-release.aab.sha256
 
-      - name: Verify checksums
+      - name: Verify local release artifact checksums
         run: |
           expected_apk="$(awk '{print $1}' release-artifacts/app-release.apk.sha256 | tr -d '\r\n')"
           actual_apk="$(sha256sum release-artifacts/app-release.apk | awk '{print $1}')"

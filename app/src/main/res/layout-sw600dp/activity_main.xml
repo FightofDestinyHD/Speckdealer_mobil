@@ -84,7 +84,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/tile_sales" />
+			android:text="@string/tile_sales_tablet" />
 
 		<TextView
 			android:id="@+id/ordersTile"
@@ -106,7 +106,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="Bestellungen" />
+			android:text="@string/tile_orders_tablet" />
 
 		<TextView
 			android:id="@+id/dailyReportTile"
@@ -128,7 +128,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="Tages-\nabschluss" />
+			android:text="@string/tile_daily_report_tablet" />
 
 		<TextView
 			android:id="@+id/settingsTile"
@@ -150,7 +150,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/tile_settings" />
+			android:text="@string/tile_settings_tablet" />
 
 		<!-- Zeile 1 -->
 		<TextView
@@ -173,7 +173,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/tile_item_maintenance" />
+			android:text="@string/tile_item_maintenance_tablet" />
 
 		<TextView
 			android:id="@+id/depositReturnTile"
@@ -197,7 +197,7 @@
 			android:lines="2"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/tile_deposit_return" />
+			android:text="@string/tile_deposit_return_tablet" />
 
 		<TextView
 			android:id="@+id/archiveTile"
@@ -216,7 +216,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/tile_archive" />
+			android:text="@string/tile_archive_tablet" />
 
 		<TextView
 			android:id="@+id/updateTile"
@@ -238,7 +238,7 @@
 			android:includeFontPadding="false"
 			android:maxLines="2"
 			android:padding="10dp"
-			android:text="@string/update_tile_symbol" />
+			android:text="@string/tile_update_tablet" />
 
 		<TextView
 			android:id="@+id/deviceSyncTile"
