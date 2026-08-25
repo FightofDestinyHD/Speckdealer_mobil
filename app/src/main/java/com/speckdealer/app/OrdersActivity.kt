@@ -19,8 +19,6 @@ import com.speckdealer.app.data.OrderStatus
 import com.speckdealer.app.data.OrderStorage
 import com.speckdealer.app.data.OrderSyncRepositoryRegistry
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 class OrdersActivity : AppCompatActivity() {
@@ -117,7 +115,6 @@ class OrderAdapter(
 ) : RecyclerView.Adapter<OrderAdapter.VH>() {
 
 	private val fmt = NumberFormat.getCurrencyInstance(Locale.GERMANY)
-	private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.GERMANY)
 
 	inner class VH(view: View) : RecyclerView.ViewHolder(view) {
 		val title: TextView = view.findViewById(R.id.orderItemTitle)
@@ -133,22 +130,11 @@ class OrderAdapter(
 		val sizeLabel = if (order.sizeName.isNotBlank()) " (${order.sizeName})" else ""
 		val empLabel = if (order.isEmployee) " – Mitarbeiter" else ""
 		val total = order.priceCents + order.depositCents
-		val timeLabel = runCatching { timeFmt.format(Date(order.timestampMs)) }.getOrDefault("--:--:--")
-		val statusLabel = runCatching { OrderStatus.valueOf(order.status).name }.getOrDefault(order.status.ifBlank { "OPEN" })
 		holder.title.text = "${order.articleName}$sizeLabel$empLabel  ${fmt.format(total / 100.0)}"
 
-		val extra = buildString {
-			append("Anzahl: 1")
-			append('\n')
-			append("Uhrzeit: ")
-			append(timeLabel)
-			append('\n')
-			append("Status: ")
-			append(statusLabel)
-		}
 		val detailsText = order.buildDetailsText()
-		holder.details.text = if (detailsText.isNotBlank()) "$extra\n$detailsText" else extra
-		holder.details.visibility = View.VISIBLE
+		holder.details.text = detailsText
+		holder.details.visibility = if (detailsText.isNotBlank()) View.VISIBLE else View.GONE
 
 		holder.doneButton.setOnClickListener { onDone(order) }
 	}

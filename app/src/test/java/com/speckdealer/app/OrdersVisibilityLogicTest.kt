@@ -3,6 +3,7 @@ package com.speckdealer.app
 import com.speckdealer.app.data.OrderRecord
 import com.speckdealer.app.data.OrderStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,6 +21,18 @@ class OrdersVisibilityLogicTest {
 		assertEquals(2, visible.size)
 		assertEquals(listOf("o1", "o2"), visible.map { it.id })
 		assertTrue(visible.all { it.status != OrderStatus.COMPLETED.name && it.status != OrderStatus.CANCELLED.name })
+	}
+
+	@Test
+	fun buildDetailsText_containsOnlyRelevantOrderDetails_withoutInternalStatusOrTimeOrQuantity() {
+		val order = sampleOrder("o5", 5000L, OrderStatus.PENDING_SYNC.name)
+		val details = order.buildDetailsText()
+
+		assertTrue(details.contains("Sonderwunsch:"))
+		assertFalse(details.contains("PENDING_SYNC"))
+		assertFalse(details.contains("Status:"))
+		assertFalse(details.contains("Uhrzeit:"))
+		assertFalse(details.contains("Anzahl:"))
 	}
 
 	private fun sampleOrder(id: String, createdAt: Long, status: String): OrderRecord {

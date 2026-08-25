@@ -55,6 +55,18 @@ data class CartEntry(
     val orderDraft: OrderDraftPayload? = null
 )
 
+internal const val CHECKOUT_SUCCESS_FEEDBACK_MS = 500L
+
+internal fun shouldShowBlockingStateDialog(state: UiOperationState): Boolean = state is UiOperationState.Error
+
+internal fun buildCheckoutSuccessMessage(changeCents: Long, currencyFormatter: NumberFormat): String {
+    return when {
+        changeCents > 0L -> "Rückgeld: ${currencyFormatter.format(changeCents / 100.0)}"
+        changeCents < 0L -> "Auszahlung: ${currencyFormatter.format((-changeCents) / 100.0)}"
+        else -> "Kassiert ✓"
+    }
+}
+
 class SalesActivity : AppCompatActivity() {
 
 	private lateinit var repository: ArticleRepository
@@ -310,8 +322,8 @@ class SalesActivity : AppCompatActivity() {
 							cartItems.clear()
 							currentCheckoutTransactionId = null
 							updateCart()
-							updateOperationState(UiOperationState.Success("Kassiervorgang gespeichert"))
-							showChangeDialog(changeCents)
+							updateOperationState(UiOperationState.Idle)
+							showCheckoutSuccessFeedback(changeCents)
 						}
 						is OperationResult.Error -> {
 							updateOperationState(UiOperationState.Error(result.message))
@@ -340,18 +352,11 @@ class SalesActivity : AppCompatActivity() {
 			.show()
 	}
 
-	/** Schritt 3: Rückgeld anzeigen */
-	private fun showChangeDialog(changeCents: Long) {
-		val changeText = when {
-			changeCents > 0L -> "Rückgeld: ${currencyFormatter.format(changeCents / 100.0)}"
-			changeCents < 0L -> "Auszahlung: ${currencyFormatter.format((-changeCents) / 100.0)}"
-			else -> "Kein Rückgeld / keine zusätzliche Auszahlung"
-		}
-		AlertDialog.Builder(this)
-			.setTitle("Kassiert ✓")
-			.setMessage(changeText)
-			.setPositiveButton("OK", null)
-			.show()
+	private fun showCheckoutSuccessFeedback(changeCents: Long) {
+		val message = buildCheckoutSuccessMessage(changeCents, currencyFormatter)
+		val snackbar = Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG)
+		snackbar.show()
+		snackbar.view.postDelayed({ snackbar.dismiss() }, CHECKOUT_SUCCESS_FEEDBACK_MS)
 	}
 
 	private fun persistDepositReturnMovementsForTransaction(transactionId: String) {
@@ -1165,9 +1170,8 @@ class SalesActivity : AppCompatActivity() {
 			cartClearButton.isEnabled = !blockButtons
 			cartCheckoutButton.isEnabled = !blockButtons && cartItems.isNotEmpty()
 		}
-		when (state) {
-			is UiOperationState.Success -> showStateDialog("Erfolg", state.message)
-			is UiOperationState.Error -> showStateDialog("Fehler", state.message)
+		when {
+			shouldShowBlockingStateDialog(state) -> showStateDialog("Fehler", (state as UiOperationState.Error).message)
 			else -> Unit
 		}
 	}
