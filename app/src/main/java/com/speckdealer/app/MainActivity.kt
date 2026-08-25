@@ -17,6 +17,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -31,6 +32,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.security.MessageDigest
 import java.util.UUID
+import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
 import org.json.JSONObject
 
@@ -148,11 +150,11 @@ class MainActivity : AppCompatActivity() {
 			val articleManagementTile = findViewById<View?>(R.id.articleManagementTile)
 			val dailyReportTile = findViewById<View?>(R.id.dailyReportTile)
 			val settingsTile = findViewById<View?>(R.id.settingsTile)
-			val depositReturnTile = findViewById<View>(R.id.depositReturnTile)
 			val updateTile = findViewById<View?>(R.id.updateTile)
 			val archiveTile = findViewById<View?>(R.id.archiveTile)
 			val deviceSyncTile = findViewById<View?>(R.id.deviceSyncTile)
 			val devModeEntry = findViewById<TextView?>(R.id.devModeEntry)
+			val versionInfoText = findViewById<TextView?>(R.id.versionInfoText)
 
 			if (salesTile == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: salesTile fehlt im Layout")
@@ -174,6 +176,9 @@ class MainActivity : AppCompatActivity() {
 			}
 			if (devModeEntry == null) {
 				StartupCrashLogger.logEvent(this, "setupMenuTiles: devModeEntry fehlt im Layout")
+			}
+			if (versionInfoText == null) {
+				StartupCrashLogger.logEvent(this, "setupMenuTiles: versionInfoText fehlt im Layout")
 			}
 
 			salesTile?.setOnClickListener {
@@ -217,16 +222,12 @@ class MainActivity : AppCompatActivity() {
 
 			settingsTile?.setOnClickListener {
 				try {
-					startActivity(Intent(this, ArticleManagementActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
+					startActivity(Intent(this, SettingsActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_PRODUCTION))
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "SettingsTile öffnen Fehler", e)
 					e.printStackTrace()
 					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Öffnen: ${e.message}", Snackbar.LENGTH_LONG).show()
 				}
-			}
-
-			depositReturnTile.setOnClickListener {
-				openDepositReturn()
 			}
 
 			archiveTile?.setOnClickListener {
@@ -241,18 +242,30 @@ class MainActivity : AppCompatActivity() {
 				entry.visibility = if (DevModeConfig.isDevEntryEnabled) View.VISIBLE else View.GONE
 				entry.setOnClickListener { showDevModePasswordDialog() }
 			}
+			versionInfoText?.text = "Version ${BuildConfig.VERSION_NAME} (Code ${BuildConfig.VERSION_CODE})"
 
 			updateTile?.setOnClickListener {
 				try {
 					if (isInstalledFromPlayStore()) {
 						startImmediateUpdateIfAvailable()
 					} else {
-						com.speckdealer.app.update.RuntimeUpdateFlow.downloadValidatedRelease(this)?.let { installApkFile(it) }
+						lifecycleScope.launch {
+							runCatching {
+								com.speckdealer.app.update.RuntimeUpdateFlow.downloadValidatedRelease(this@MainActivity)
+							}.onSuccess { file ->
+								file?.let { installApkFile(it) }
+							}.onFailure { e ->
+								StartupCrashLogger.logEvent(this@MainActivity, "Update-Start Fehler", e)
+								val updateError = e.message?.takeIf { it.isNotBlank() } ?: e::class.java.simpleName
+								Snackbar.make(findViewById(android.R.id.content), "Fehler beim Update: $updateError", Snackbar.LENGTH_LONG).show()
+							}
+						}
 					}
 				} catch (e: Exception) {
 					StartupCrashLogger.logEvent(this, "Update-Start Fehler", e)
 					e.printStackTrace()
-					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Update: ${e.message}", Snackbar.LENGTH_LONG).show()
+					val updateError = e.message?.takeIf { it.isNotBlank() } ?: e::class.java.simpleName
+					Snackbar.make(findViewById(android.R.id.content), "Fehler beim Update: $updateError", Snackbar.LENGTH_LONG).show()
 				}
 			}
 			StartupCrashLogger.logEvent(this, "setupMenuTiles fertig")

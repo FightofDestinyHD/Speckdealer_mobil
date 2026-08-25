@@ -60,12 +60,6 @@
 				android:layout_marginStart="6dp"
 				android:text="Angebot" />
 
-			<Button
-				android:id="@+id/categoryPfandButton"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="6dp"
-				android:text="Pfand" />
 		</LinearLayout>
 	</HorizontalScrollView>
 
@@ -127,54 +121,26 @@
 						android:textSize="13sp"
 						android:visibility="gone" />
 
-				<CheckBox
-					android:id="@+id/isWeinCheckbox"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:text="Weinartikel (Flasche/Glas)" />
-
 				<LinearLayout
 					android:id="@+id/wineOptionsContainer"
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:orientation="vertical">
+					android:orientation="vertical"
+					android:visibility="gone">
 
 					<CheckBox
-						android:id="@+id/hasBottleCheckbox"
+						android:id="@+id/wineGlassDepositCheckbox"
 						android:layout_width="match_parent"
 						android:layout_height="wrap_content"
-						android:checked="true"
-						android:text="Flasche" />
+						android:text="Glaspfand anwenden" />
 
 					<CheckBox
-							android:id="@+id/hasGlass01Checkbox"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Glas 0,1l" />
+						android:id="@+id/wineBottleDepositCheckbox"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:text="Flaschenpfand anwenden" />
 
-						<EditText
-							android:id="@+id/glass01PriceInput"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:layout_marginStart="16dp"
-							android:hint="Preis Glas 0,1l (z. B. 2.50)"
-							android:inputType="numberDecimal" />
-
-						<CheckBox
-							android:id="@+id/hasGlass02Checkbox"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="Glas 0,2l" />
-
-						<EditText
-							android:id="@+id/glass02PriceInput"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:layout_marginStart="16dp"
-							android:hint="Preis Glas 0,2l (z. B. 3.50)"
-							android:inputType="numberDecimal" />
-
-					</LinearLayout>
+				</LinearLayout>
 
 				<CheckBox
 					android:id="@+id/depositApplicableCheckbox"

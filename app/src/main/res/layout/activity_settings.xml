@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="@drawable/app_background"
+	android:orientation="vertical"
+	android:padding="12dp">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Einstellungen"
+		android:textStyle="bold"
+		android:textSize="20sp"
+		android:paddingBottom="8dp" />
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:background="#E6FFFFFF"
+		android:padding="12dp">
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Globales Pfandsystem"
+			android:textStyle="bold"
+			android:textSize="16sp"
+			android:paddingBottom="8dp" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Glaspfand (€)" />
+		<EditText
+			android:id="@+id/glassDepositInput"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginBottom="6dp"
+			android:inputType="numberDecimal"
+			android:hint="0,00" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Flaschenpfand (€)" />
+		<EditText
+			android:id="@+id/bottleDepositInput"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginBottom="6dp"
+			android:inputType="numberDecimal"
+			android:hint="0,00" />
+
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Tellerpfand (€)" />
+		<EditText
+			android:id="@+id/plateDepositInput"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:inputType="numberDecimal"
+			android:hint="0,00" />
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:layout_marginTop="10dp">
+		<Button
+			android:id="@+id/settingsBackButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Zurück" />
+		<Button
+			android:id="@+id/settingsSaveButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginStart="8dp"
+			android:text="Speichern" />
+	</LinearLayout>
+
+</LinearLayout>

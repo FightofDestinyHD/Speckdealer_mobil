@@ -114,6 +114,15 @@
 			android:textColor="#FFFFFF" />
 
 		<Button
+			android:id="@+id/archiveDeleteButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:backgroundTint="#B71C1C"
+			android:text="Archiv löschen"
+			android:textColor="#FFFFFF" />
+
+		<Button
 			android:id="@+id/archiveDetailCloseButton"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"

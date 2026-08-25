@@ -38,6 +38,6 @@ public enum CategoryType {
 	}
 
 	public static List<CategoryType> defaultOrder() {
-		return Arrays.asList(WEIN, SOFTGETRAENKE, SPECK, KAESE, SNACKS, ANGEBOT, PFAND);
+		return Arrays.asList(WEIN, SOFTGETRAENKE, SPECK, KAESE, SNACKS, ANGEBOT);
 	}
 }

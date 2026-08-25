@@ -85,6 +85,55 @@ class DailyReportArchiveBuilderTest {
 		assertTrue(archived.depositSummaries.any { it.depositType == "PLATE" && it.amountCents == 150L })
 	}
 
+	@Test
+	fun buildArchivedReport_ignoresNegativeDepositInReceived_andNoDoubleSubtraction() {
+		val sales = listOf(
+			sampleSale(),
+			SaleRecord(
+				articleName = "Pfandrückgabe Glas",
+				category = CategoryType.PFAND.storageValue,
+				servingType = "RETURN",
+				priceCents = 0,
+				depositCents = -500,
+				isEmployee = false,
+				taxCategory = TaxCategory.DEPOSIT.name,
+				taxRateBasisPoints = 0,
+				netAmountCents = 0,
+				taxAmountCents = 0,
+				grossAmountCents = 0,
+				transactionId = "ret-1",
+				recordId = "ret-1:sale:0",
+				timestampMs = 10
+			)
+		)
+		val deposits = listOf(
+			DepositMovement(
+				transactionId = "ret-1",
+				depositType = "GLASS",
+				displayName = "Glas",
+				quantity = 1,
+				unitAmountCents = 500,
+				totalAmountCents = 500,
+				movementType = DepositMovementType.RETURNED,
+				timestampMs = 11
+			)
+		)
+
+		val archived = DailyReportArchiveBuilder.buildArchivedReport(
+			businessDate = "2026-08-19",
+			archivedAt = 200L,
+			completionTransactionId = "tx-archive-neg",
+			records = sales,
+			depositMovements = deposits,
+			orders = emptyList()
+		)
+
+		assertEquals(200L, archived.depositReceivedCents)
+		assertEquals(500L, archived.depositReturnedCents)
+		assertEquals(-300L, archived.depositBalanceCents)
+		assertTrue(archived.depositSummaries.any { it.depositType == "GLASS" && it.amountCents == 500L })
+	}
+
 	private fun sampleSale(): SaleRecord = SaleRecord(
 		articleName = "Wein",
 		category = CategoryType.WEIN.storageValue,

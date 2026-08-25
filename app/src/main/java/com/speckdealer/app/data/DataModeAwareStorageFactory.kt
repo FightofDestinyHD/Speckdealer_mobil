@@ -29,6 +29,11 @@ object DataModeAwareStorageFactory {
 		return ArticleStorage(context, namespaceSuffix(dataMode))
 	}
 
+	fun globalSettingsStorage(context: Context, dataMode: String): GlobalSettingsStorage {
+		val articleStorage = articleStorage(context, dataMode)
+		return GlobalSettingsStorage(context, namespaceSuffix(dataMode), articleStorage)
+	}
+
 	private fun namespaceSuffix(dataMode: String): String {
 		return if (AppDataMode.isDev(dataMode)) "dev" else "prod"
 	}

@@ -38,6 +38,7 @@
 
 		<EditText
 			android:id="@+id/syncHostInput"
+			style="@style/Widget.Speckdealer.DeviceSyncInput"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="12dp"
@@ -46,6 +47,7 @@
 
 		<EditText
 			android:id="@+id/syncPortInput"
+			style="@style/Widget.Speckdealer.DeviceSyncInput"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="8dp"
@@ -55,6 +57,7 @@
 
 		<EditText
 			android:id="@+id/syncCodeInput"
+			style="@style/Widget.Speckdealer.DeviceSyncInput"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="8dp"

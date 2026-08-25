@@ -53,6 +53,25 @@ class ArchivedDailyReportStorage(context: Context, namespaceSuffix: String = "pr
 		}
 	}
 
+	fun deleteById(reportId: String): Boolean {
+		if (reportId.isBlank()) return false
+		synchronized(lock) {
+			val (result, removed) = store.updateArray { currentArray ->
+				val existing = loadFromArray(currentArray).toMutableList()
+				val updated = existing.filterNot { it.id == reportId }
+				if (updated.size == existing.size) {
+					toJsonArray(existing) to false
+				} else {
+					toJsonArray(updated) to true
+				}
+			}
+			if (!result.success) {
+				throw IllegalStateException(result.errorMessage ?: "Archivdaten konnten nicht gelöscht werden")
+			}
+			return removed
+		}
+	}
+
 	fun findByCompletionTransactionId(transactionId: String): ArchivedDailyReport? {
 		if (transactionId.isBlank()) return null
 		return loadAll().firstOrNull { it.completionTransactionId == transactionId }

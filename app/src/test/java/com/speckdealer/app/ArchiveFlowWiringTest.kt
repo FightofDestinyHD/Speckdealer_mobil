@@ -65,6 +65,16 @@ class ArchiveFlowWiringTest {
 	}
 
 	@Test
+	fun archiveDelete_usesConfirmationAndDeletesSingleRecord() {
+		val detail = readProjectFile("app/src/main/java/com/speckdealer/app/ArchivedReportDetailActivity.kt")
+		val storage = readProjectFile("app/src/main/java/com/speckdealer/app/data/ArchivedDailyReportStorage.kt")
+		assertTrue(detail.contains("setTitle(\"Archivierten Tagesabschluss löschen?\")"))
+		assertTrue(detail.contains("setMessage(\"Dieser archivierte Tagesabschluss wird dauerhaft gelöscht."))
+		assertTrue(detail.contains("archiveStorage.deleteById(report.id)"))
+		assertTrue(storage.contains("fun deleteById(reportId: String): Boolean"))
+	}
+
+	@Test
 	fun pdfSave_cancelDoesNotTriggerErrorFlow() {
 		val detail = readProjectFile("app/src/main/java/com/speckdealer/app/ArchivedReportDetailActivity.kt")
 		assertTrue(detail.contains("if (result.resultCode != RESULT_OK || uri == null)"))

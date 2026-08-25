@@ -1,4 +1,4 @@
-package com.speckdealer.app.data
+﻿package com.speckdealer.app.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,3 +43,4 @@ class ArchivedDailyReportStorageTest {
 		assertFalse(report.employeeSales.isEmpty())
 	}
 }
+

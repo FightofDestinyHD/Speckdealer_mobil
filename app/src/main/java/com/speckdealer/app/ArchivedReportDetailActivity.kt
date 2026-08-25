@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.speckdealer.app.data.ArchivedDailyReport
@@ -41,6 +42,7 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 		findViewById<Button>(R.id.archiveExportPdfButton).setOnClickListener { generatePdfOnly() }
 		findViewById<Button>(R.id.archiveSavePdfButton).setOnClickListener { exportPdfToLocalStorage() }
 		findViewById<Button>(R.id.archiveSharePdfButton).setOnClickListener { sharePdf() }
+		findViewById<Button>(R.id.archiveDeleteButton).setOnClickListener { confirmDeleteReport() }
 
 		loadReport()
 	}
@@ -167,6 +169,23 @@ class ArchivedReportDetailActivity : AppCompatActivity() {
 		}.onFailure {
 			Snackbar.make(findViewById(android.R.id.content), "PDF-Teilen fehlgeschlagen.", Snackbar.LENGTH_LONG).show()
 		}
+	}
+
+	private fun confirmDeleteReport() {
+		val report = currentReport ?: return
+		AlertDialog.Builder(this)
+			.setTitle("Archivierten Tagesabschluss löschen?")
+			.setMessage("Dieser archivierte Tagesabschluss wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.")
+			.setNegativeButton("Abbrechen", null)
+			.setPositiveButton("Endgültig löschen") { _, _ ->
+				if (archiveStorage.deleteById(report.id)) {
+					Snackbar.make(findViewById(android.R.id.content), "Archivierter Tagesabschluss gelöscht.", Snackbar.LENGTH_LONG).show()
+					finish()
+				} else {
+					Snackbar.make(findViewById(android.R.id.content), "Archivdatensatz konnte nicht gelöscht werden.", Snackbar.LENGTH_LONG).show()
+				}
+			}
+			.show()
 	}
 
 	companion object {

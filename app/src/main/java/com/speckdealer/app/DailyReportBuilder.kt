@@ -62,20 +62,20 @@ object DailyReportBuilder {
 		val totalGrossAllTaxable = taxableSales.sumOf { it.grossAmountCents.toLong() }
 		val unclearOfferGross = unclearOfferSales.sumOf { it.grossAmountCents.toLong() }
 
-		val depositReceived = taxableSales.sumOf { it.depositCents.toLong() }
+		val depositReceived = taxableSales.sumOf { it.depositCents.toLong().coerceAtLeast(0L) }
 		val returnedMovements = depositMovements.filter { it.movementType == DepositMovementType.RETURNED }
-		val depositReturned = returnedMovements.sumOf { it.totalAmountCents }
+		val depositReturned = returnedMovements.sumOf { kotlin.math.abs(it.totalAmountCents) }
 		val depositBalance = depositReceived - depositReturned
 
 		val returnedBottle = returnedMovements
 			.filter { isBottleType(it.depositType, it.displayName) }
-			.sumOf { it.totalAmountCents }
+			.sumOf { kotlin.math.abs(it.totalAmountCents) }
 		val returnedGlass = returnedMovements
 			.filter { isGlassType(it.depositType, it.displayName) }
-			.sumOf { it.totalAmountCents }
+			.sumOf { kotlin.math.abs(it.totalAmountCents) }
 		val returnedPlate = returnedMovements
 			.filter { isPlateType(it.depositType, it.displayName) }
-			.sumOf { it.totalAmountCents }
+			.sumOf { kotlin.math.abs(it.totalAmountCents) }
 		val returnedOther = (depositReturned - returnedBottle - returnedGlass - returnedPlate).coerceAtLeast(0L)
 
 		val summaryText = buildString {

@@ -1,24 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:background="@drawable/app_background"
 	android:orientation="vertical"
 	android:padding="12dp">
 
-	<com.google.android.material.tabs.TabLayout
-		android:id="@+id/salesTabLayout"
+	<HorizontalScrollView
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:background="#DDFFFFFF"
-		app:tabMode="scrollable" />
+		android:fillViewport="true"
+		android:scrollbars="none">
+
+		<LinearLayout
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="8dp"
+			android:background="#CCFFFFFF">
+
+			<Button
+				android:id="@+id/categoryWeinButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Wein" />
+
+			<Button
+				android:id="@+id/categorySoftButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Softgetränke" />
+
+			<Button
+				android:id="@+id/categorySpeckButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Speck" />
+
+			<Button
+				android:id="@+id/categoryKaeseButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Käse" />
+
+			<Button
+				android:id="@+id/categorySnacksButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Snacks" />
+
+			<Button
+				android:id="@+id/categoryAngebotButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Angebot" />
+
+			<Button
+				android:id="@+id/depositReturnActionButton"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="6dp"
+				android:text="Pfandrückgabe" />
+
+		</LinearLayout>
+	</HorizontalScrollView>
 
 	<androidx.recyclerview.widget.RecyclerView
 		android:id="@+id/salesArticleRecyclerView"
 		android:layout_width="match_parent"
 		android:layout_height="0dp"
-		android:layout_marginTop="8dp"
+		android:layout_marginTop="10dp"
 		android:layout_weight="1"
 		android:background="#CCFFFFFF"
 		android:clipToPadding="false"

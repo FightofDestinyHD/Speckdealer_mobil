@@ -13,51 +13,53 @@ import java.net.HttpURLConnection
 object RuntimeUpdateFlow {
 	private const val GITHUB_API_LATEST = "https://api.github.com/repos/FightofDestinyHD/Speckdealer_mobil/releases/latest"
 
-	fun downloadValidatedRelease(activity: MainActivity): File? {
-		val releaseAsset = resolveLatestReleaseAsset() ?: run {
-			showSnackbar(activity, "GitHub-Release nicht erreichbar oder kein gültiges APK-Asset vorhanden.")
-			return null
-		}
-
-		val apkFile = File(activity.cacheDir, "speckdealer-update-${System.currentTimeMillis()}.apk")
-		if (apkFile.exists()) runCatching { apkFile.delete() }
-
-		val installed = snapshotInstalledApp(activity.packageManager, activity.packageName)
-		if (installed == null) {
-			showSnackbar(activity, "Installierte App-Version konnte nicht gelesen werden.")
-			return null
-		}
-
-		val downloaded = downloadAndInspectApk(activity, releaseAsset, apkFile) ?: return null
-		logDeviceUpdateSnapshot(activity, installed, downloaded)
-
-		val result = evaluateUpdateCompatibility(activity.packageName, installed, downloaded)
-		when (result.status) {
-			UpdateStatus.NO_NEW_VERSION -> {
-				showSnackbar(activity, result.message)
-				return null
+	suspend fun downloadValidatedRelease(activity: MainActivity): File? {
+		return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+			val releaseAsset = resolveLatestReleaseAsset() ?: run {
+				showSnackbar(activity, "GitHub-Release nicht erreichbar oder kein gültiges APK-Asset vorhanden.")
+				return@withContext null
 			}
-			UpdateStatus.ERROR -> {
-				showSnackbar(activity, buildString {
-					append(result.message)
-					append('\n')
-					append("Installiert: ")
-					append(result.installedCertificateDigest ?: "(leer)")
-					append('\n')
-					append("Heruntergeladen: ")
-					append(result.downloadedCertificateDigest ?: "(leer)")
-					append('\n')
-					append(result.diagnosticMessage)
-				})
-				return null
+
+			val apkFile = File(activity.cacheDir, "speckdealer-update-${System.currentTimeMillis()}.apk")
+			if (apkFile.exists()) runCatching { apkFile.delete() }
+
+			val installed = snapshotInstalledApp(activity.packageManager, activity.packageName)
+			if (installed == null) {
+				showSnackbar(activity, "Installierte App-Version konnte nicht gelesen werden.")
+				return@withContext null
 			}
-			UpdateStatus.UPDATE_READY -> {
-				showSnackbar(activity, "Update bereit. Installation wartet auf Benutzerbestätigung.")
-				return apkFile
-			}
-			else -> {
-				showSnackbar(activity, "Update-Status: ${result.status}")
-				return null
+
+			val downloaded = downloadAndInspectApk(activity, releaseAsset, apkFile) ?: return@withContext null
+			logDeviceUpdateSnapshot(activity, installed, downloaded)
+
+			val result = evaluateUpdateCompatibility(activity.packageName, installed, downloaded)
+			when (result.status) {
+				UpdateStatus.NO_NEW_VERSION -> {
+					showSnackbar(activity, result.message)
+					null
+				}
+				UpdateStatus.ERROR -> {
+					showSnackbar(activity, buildString {
+						append(result.message)
+						append('\n')
+						append("Installiert: ")
+						append(result.installedCertificateDigest ?: "(leer)")
+						append('\n')
+						append("Heruntergeladen: ")
+						append(result.downloadedCertificateDigest ?: "(leer)")
+						append('\n')
+						append(result.diagnosticMessage)
+					})
+					null
+				}
+				UpdateStatus.UPDATE_READY -> {
+					showSnackbar(activity, "Update bereit. Installation wartet auf Benutzerbestätigung.")
+					apkFile
+				}
+				else -> {
+					showSnackbar(activity, "Update-Status: ${result.status}")
+					null
+				}
 			}
 		}
 	}

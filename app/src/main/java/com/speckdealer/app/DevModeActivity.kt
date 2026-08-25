@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArchivedDailyReportStorage
+import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.CategoryType
 import com.speckdealer.app.data.DataModeAwareStorageFactory
 import com.speckdealer.app.data.DepositMovement
@@ -65,20 +66,47 @@ class DevModeActivity : AppCompatActivity() {
 	}
 
 	private fun startDevSales() {
-		startActivity(Intent(this, SalesActivity::class.java).putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_DEV))
+		startActivity(Intent(this, SalesActivity::class.java).apply {
+			putExtra(AppDataMode.EXTRA_DATA_MODE, AppDataMode.MODE_DEV)
+		})
 	}
 
 	private fun loadTestArticles() {
 		val repository = AppGraph.repository(this, AppDataMode.MODE_DEV)
-		val existing = repository.getDepositArticles()
-		if (existing.isNotEmpty()) {
-			snack("Testartikel sind bereits vorhanden.")
+		val seededArticles = listOf(
+			ArticleEntity("DEV_TEST_WEIN_FLASCHE", CategoryType.WEIN.storageValue, 650, null, true, true, false, false, true, false, false, true, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_WEIN_GLAS", CategoryType.WEIN.storageValue, 180, null, true, false, false, false, true, true, true, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_WEIN_BEIDES", CategoryType.WEIN.storageValue, 280, null, true, true, false, false, true, true, true, true, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_SOFTDRINK_FLASCHE", CategoryType.SOFTGETRAENKE.storageValue, 250, null, false, false, false, false, true, false, false, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_SOFTDRINK_GLASS", CategoryType.SOFTGETRAENKE.storageValue, 150, null, false, false, false, false, false, true, false, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_SPECK", CategoryType.SPECK.storageValue, 490, null, false, false, false, false, false, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_KAESE", CategoryType.KAESE.storageValue, 520, null, false, false, false, false, false, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_SNACK_KLEIN", CategoryType.SNACKS.storageValue, 390, null, false, false, false, false, true, false, 0, 0, true, true, 590, 390),
+			ArticleEntity("DEV_TEST_SNACK_GROSS", CategoryType.SNACKS.storageValue, 590, null, false, false, false, false, true, false, 0, 0, true, true, 790, 490),
+			ArticleEntity("DEV_TEST_ANGEBOT", CategoryType.ANGEBOT.storageValue, 1290, null, false, false, false, false, true, false, 0, 0, true, true, 1490, 990),
+			ArticleEntity("DEV_TEST_PFAND_FLASCHE", CategoryType.PFAND.storageValue, 200, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_PFAND_GLAS", CategoryType.PFAND.storageValue, 100, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0),
+			ArticleEntity("DEV_TEST_PFAND_TELLER", CategoryType.PFAND.storageValue, 150, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0)
+		)
+		val existingByName = repository.getArticles().associateBy { it.name }
+		var createdOrUpdated = 0
+		seededArticles.forEach { seeded ->
+			val existing = existingByName[seeded.name]
+			if (existing == null) {
+				repository.saveArticle(seeded)
+				createdOrUpdated++
+			} else {
+				seeded.id = existing.id
+				repository.updateArticle(seeded)
+				createdOrUpdated++
+			}
+		}
+		val verified = repository.getArticles().count { it.name.startsWith("DEV_TEST_") }
+		if (verified < seededArticles.size) {
+			snack("Testartikel wurden gespeichert, aber im DEV-Testverkauf nicht geladen. Datenmodus und Repository müssen geprüft werden.")
 			return
 		}
-		repository.saveArticle(com.speckdealer.app.data.ArticleEntity("DEV Pfand Flasche", CategoryType.PFAND.storageValue, 200, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0))
-		repository.saveArticle(com.speckdealer.app.data.ArticleEntity("DEV Pfand Glas", CategoryType.PFAND.storageValue, 100, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0))
-		repository.saveArticle(com.speckdealer.app.data.ArticleEntity("DEV Pfand Teller", CategoryType.PFAND.storageValue, 150, null, false, false, false, false, true, false, 0, 0, false, false, 0, 0))
-		snack("DEV-Testartikel angelegt.")
+		snack("Testartikel angelegt: $createdOrUpdated. Im DEV-Testverkauf sichtbar: $verified.")
 	}
 
 	private fun addDeposit(type: String, displayName: String) {

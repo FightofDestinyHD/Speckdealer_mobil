@@ -23,6 +23,10 @@ public class ArticleRepository {
 		return storage.getArticlesByCategory(categoryType);
 	}
 
+	public List<ArticleEntity> getArticles() {
+		return storage.getArticles();
+	}
+
 	public List<ArticleEntity> getDepositArticles() {
 		return storage.getDepositArticles();
 	}

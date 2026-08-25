@@ -137,12 +137,8 @@ class CheckoutService(
 		}
 
 		val checkoutId = UUID.randomUUID().toString()
-		val total = finalTotalCents.coerceAtLeast(0L)
-		val totalDeposit = drafts.sumOf { it.depositCents.toLong().coerceAtLeast(0L) }
-		if (total < totalDeposit) {
-			throw IllegalArgumentException("Gesamtbetrag liegt unter dem Pfandanteil")
-		}
-		val taxableTotal = total - totalDeposit
+		val positiveDeposit = drafts.sumOf { it.depositCents.toLong().coerceAtLeast(0L) }
+		val taxableTotal = (finalTotalCents - positiveDeposit).coerceAtLeast(0L)
 
 		val sales = mutableListOf<SaleRecord>()
 		val orders = mutableListOf<OrderRecord>()

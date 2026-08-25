@@ -30,7 +30,7 @@
 		android:textSize="14sp"
 		android:textStyle="bold" />
 
-	<!-- Hauptpreis (Flasche / Standardpreis) -->
+	<!-- Hauptpreis -->
 	<TextView
 		android:id="@+id/salesArticlePrice"
 		android:layout_width="match_parent"
@@ -39,25 +39,6 @@
 		android:textColor="#1B5E20"
 		android:textSize="13sp"
 		android:textStyle="bold" />
-
-	<!-- Glaspreise (nur sichtbar wenn gesetzt) -->
-	<TextView
-		android:id="@+id/salesArticleGlass01Price"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:gravity="center"
-		android:textColor="#2E7D32"
-		android:textSize="11sp"
-		android:visibility="gone" />
-
-	<TextView
-		android:id="@+id/salesArticleGlass02Price"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:gravity="center"
-		android:textColor="#2E7D32"
-		android:textSize="11sp"
-		android:visibility="gone" />
 
 	<!-- Meta (Wein / Pfand usw.) -->
 	<TextView

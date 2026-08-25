@@ -1,24 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:background="@drawable/app_background"
-	android:orientation="horizontal">
+	android:orientation="horizontal"
+	android:padding="16dp">
 
-	<!-- Linke Spalte: Tabs + Artikel-Liste -->
+	<LinearLayout
+		android:layout_width="160dp"
+		android:layout_height="match_parent"
+		android:background="#CCFFFFFF"
+		android:orientation="vertical"
+		android:padding="8dp">
+
+		<Button
+			android:id="@+id/categoryWeinButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="Wein" />
+
+		<Button
+			android:id="@+id/categorySoftButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Softgetränke" />
+
+		<Button
+			android:id="@+id/categorySpeckButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Speck" />
+
+		<Button
+			android:id="@+id/categoryKaeseButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Käse" />
+
+		<Button
+			android:id="@+id/categorySnacksButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Snacks" />
+
+		<Button
+			android:id="@+id/categoryAngebotButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Angebot" />
+
+		<Button
+			android:id="@+id/depositReturnActionButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Pfandrückgabe" />
+
+	</LinearLayout>
+
 	<LinearLayout
 		android:layout_width="0dp"
 		android:layout_height="match_parent"
+		android:layout_marginStart="12dp"
 		android:layout_weight="1"
 		android:orientation="vertical">
-
-		<com.google.android.material.tabs.TabLayout
-			android:id="@+id/salesTabLayout"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:background="#DDFFFFFF"
-			app:tabMode="scrollable" />
 
 		<androidx.recyclerview.widget.RecyclerView
 			android:id="@+id/salesArticleRecyclerView"

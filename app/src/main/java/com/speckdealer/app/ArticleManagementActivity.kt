@@ -41,17 +41,13 @@ class ArticleManagementActivity : AppCompatActivity() {
 	private lateinit var selectedCategoryTitle: TextView
 	private lateinit var articleNameInput: EditText
 	private lateinit var articlePriceInput: EditText
-	private lateinit var isWeinCheckbox: CheckBox
-	private lateinit var hasBottleCheckbox: CheckBox
-	private lateinit var hasGlass01Checkbox: CheckBox
-	private lateinit var hasGlass02Checkbox: CheckBox
+	private lateinit var wineGlassDepositCheckbox: CheckBox
+	private lateinit var wineBottleDepositCheckbox: CheckBox
 	private lateinit var glassDepositOptionalCheckbox: CheckBox
 	private lateinit var depositApplicableCheckbox: CheckBox
 	private lateinit var wineOptionsContainer: View
 	private lateinit var selectImageButton: Button
 	private lateinit var selectedImageLabel: TextView
-	private lateinit var glass01PriceInput: EditText
-	private lateinit var glass02PriceInput: EditText
 	private lateinit var weightPriceHint: TextView
 	private lateinit var snackSizeContainer: View
 	private lateinit var snackSizeLabel: TextView
@@ -101,17 +97,13 @@ class ArticleManagementActivity : AppCompatActivity() {
 		selectedCategoryTitle = findViewById(R.id.selectedCategoryTitle)
 		articleNameInput = findViewById(R.id.articleNameInput)
 		articlePriceInput = findViewById(R.id.articlePriceInput)
-		isWeinCheckbox = findViewById(R.id.isWeinCheckbox)
-		hasBottleCheckbox = findViewById(R.id.hasBottleCheckbox)
-		hasGlass01Checkbox = findViewById(R.id.hasGlass01Checkbox)
-		hasGlass02Checkbox = findViewById(R.id.hasGlass02Checkbox)
+		wineGlassDepositCheckbox = findViewById(R.id.wineGlassDepositCheckbox)
+		wineBottleDepositCheckbox = findViewById(R.id.wineBottleDepositCheckbox)
 		glassDepositOptionalCheckbox = findViewById(R.id.glassDepositOptionalCheckbox)
 		depositApplicableCheckbox = findViewById(R.id.depositApplicableCheckbox)
 		wineOptionsContainer = findViewById(R.id.wineOptionsContainer)
 		selectImageButton = findViewById(R.id.selectImageButton)
 		selectedImageLabel = findViewById(R.id.selectedImageLabel)
-		glass01PriceInput = findViewById(R.id.glass01PriceInput)
-		glass02PriceInput = findViewById(R.id.glass02PriceInput)
 		weightPriceHint = findViewById(R.id.weightPriceHint)
 		snackSizeContainer = findViewById(R.id.snackSizeContainer)
 		snackSizeLabel = findViewById(R.id.snackSizeLabel)
@@ -141,14 +133,9 @@ class ArticleManagementActivity : AppCompatActivity() {
 		findViewById<Button>(R.id.categoryKaeseButton).setOnClickListener { selectCategory(CategoryType.KAESE) }
 		findViewById<Button>(R.id.categorySnacksButton).setOnClickListener { selectCategory(CategoryType.SNACKS) }
 		findViewById<Button>(R.id.categoryAngebotButton).setOnClickListener { selectCategory(CategoryType.ANGEBOT) }
-		findViewById<Button>(R.id.categoryPfandButton).setOnClickListener { selectCategory(CategoryType.PFAND) }
 	}
 
 	private fun setupFormActions() {
-		isWeinCheckbox.setOnCheckedChangeListener { _, _ ->
-			wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
-		}
-
 		depositApplicableCheckbox.setOnCheckedChangeListener { _, isChecked ->
 			glassDepositOptionalCheckbox.visibility =
 				if (selectedCategory == CategoryType.SOFTGETRAENKE && isChecked) View.VISIBLE else View.GONE
@@ -182,17 +169,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 	}
 
 	private fun configureFormForCategory(categoryType: CategoryType) {
-		val isPfandCategory   = categoryType == CategoryType.PFAND
 		val isWeinCategory    = categoryType == CategoryType.WEIN
 		val isSoftCategory    = categoryType == CategoryType.SOFTGETRAENKE
 		val isSnackCategory   = categoryType == CategoryType.SNACKS
 		val isAngebotCategory = categoryType == CategoryType.ANGEBOT
 		val isWeightCategory  = categoryType == CategoryType.SPECK || categoryType == CategoryType.KAESE
 
-		selectImageButton.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
-		selectedImageLabel.visibility = if (isPfandCategory) View.GONE else View.VISIBLE
-		isWeinCheckbox.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
-		wineOptionsContainer.visibility = if (isWeinCategory && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
+		selectImageButton.visibility = View.VISIBLE
+		selectedImageLabel.visibility = View.VISIBLE
+		wineOptionsContainer.visibility = if (isWeinCategory) View.VISIBLE else View.GONE
 		depositApplicableCheckbox.visibility = if (isSoftCategory || isSnackCategory) View.VISIBLE else View.GONE
 		glassDepositOptionalCheckbox.visibility = if (isSoftCategory && depositApplicableCheckbox.isChecked) View.VISIBLE else View.GONE
 		snackSizeContainer.visibility = if (isSnackCategory || isAngebotCategory) View.VISIBLE else View.GONE
@@ -228,22 +213,7 @@ class ArticleManagementActivity : AppCompatActivity() {
 			return
 		}
 
-		val isPfand = selectedCategory == CategoryType.PFAND
-		val isWeinArtikel = selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked
-
-		val glass01Price = glass01PriceInput.text.toString().trim().replace(',', '.')
-		val glass01Cents = if (isWeinArtikel && hasGlass01Checkbox.isChecked) {
-			val v = ((glass01Price.toDoubleOrNull() ?: -1.0) * 100).toInt()
-			if (v < 0) { showMessage("Bitte gültigen Preis für Glas 0,1l eingeben"); return }
-			v
-		} else 0
-
-		val glass02Price = glass02PriceInput.text.toString().trim().replace(',', '.')
-		val glass02Cents = if (isWeinArtikel && hasGlass02Checkbox.isChecked) {
-			val v = ((glass02Price.toDoubleOrNull() ?: -1.0) * 100).toInt()
-			if (v < 0) { showMessage("Bitte gültigen Preis für Glas 0,2l eingeben"); return }
-			v
-		} else 0
+		val isWeinArtikel = selectedCategory == CategoryType.WEIN
 
 		val isSoft    = selectedCategory == CategoryType.SOFTGETRAENKE
 		val isSnack   = selectedCategory == CategoryType.SNACKS
@@ -264,19 +234,23 @@ class ArticleManagementActivity : AppCompatActivity() {
 			v
 		} else 0
 
+		val wineGlassDepositEnabled = selectedCategory == CategoryType.WEIN && wineGlassDepositCheckbox.isChecked
+		val wineBottleDepositEnabled = selectedCategory == CategoryType.WEIN && wineBottleDepositCheckbox.isChecked
 		val article = ArticleEntity(
 			name,
 			selectedCategory.storageValue,
 			priceCents,
-			if (isPfand) null else selectedImageUri,
+			selectedImageUri,
 			isWeinArtikel,
-			hasBottleCheckbox.isChecked,
-			hasGlass01Checkbox.isChecked,
-			hasGlass02Checkbox.isChecked,
-			if (isSoft || isSnack) depositApplicableCheckbox.isChecked else !isPfand && depositApplicableCheckbox.isChecked,
-			(isWeinArtikel || isSoft) && glassDepositOptionalCheckbox.isChecked,
-			glass01Cents,
-			glass02Cents,
+			wineBottleDepositEnabled,
+			false,
+			false,
+			if (isSoft || isSnack) depositApplicableCheckbox.isChecked else selectedCategory == CategoryType.WEIN && (wineGlassDepositEnabled || wineBottleDepositEnabled),
+			if (selectedCategory == CategoryType.WEIN) wineGlassDepositEnabled else isSoft && glassDepositOptionalCheckbox.isChecked,
+			wineGlassDepositEnabled,
+			wineBottleDepositEnabled,
+			0,
+			0,
 			(isSnack || isAngebot) && hasLargeCheckbox.isChecked,
 			(isSnack || isAngebot) && hasSmallCheckbox.isChecked,
 			largeCents,
@@ -304,19 +278,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 		articlePriceInput.setText(String.format(Locale.US, "%.2f", article.priceCents / 100.0))
 		selectedImageUri = article.imageUri
 		selectedImageLabel.text = article.imageUri ?: "Kein Bild gewählt"
-		isWeinCheckbox.isChecked = article.isWein
-		glass01PriceInput.setText(if (article.glass01PriceCents > 0) String.format(Locale.US, "%.2f", article.glass01PriceCents / 100.0) else "")
-		glass02PriceInput.setText(if (article.glass02PriceCents > 0) String.format(Locale.US, "%.2f", article.glass02PriceCents / 100.0) else "")
-		hasBottleCheckbox.isChecked = article.hasBottleOption
-		hasGlass01Checkbox.isChecked = article.hasGlass01Option
-		hasGlass02Checkbox.isChecked = article.hasGlass02Option
+		wineBottleDepositCheckbox.isChecked = article.wineBottleDepositEnabled || article.hasBottleOption
+		wineGlassDepositCheckbox.isChecked = article.wineGlassDepositEnabled || article.glassDepositOptional
 		depositApplicableCheckbox.isChecked = article.depositApplicable
 		glassDepositOptionalCheckbox.isChecked = article.glassDepositOptional
 		hasLargeCheckbox.isChecked = article.hasLargeOption
 		hasSmallCheckbox.isChecked = article.hasSmallOption
 		largePriceInput.setText(if (article.largePriceCents > 0) String.format(Locale.US, "%.2f", article.largePriceCents / 100.0) else "")
 		smallPriceInput.setText(if (article.smallPriceCents > 0) String.format(Locale.US, "%.2f", article.smallPriceCents / 100.0) else "")
-		wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN && isWeinCheckbox.isChecked) View.VISIBLE else View.GONE
+		wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN) View.VISIBLE else View.GONE
 	}
 
 	private fun clearForm() {
@@ -325,19 +295,15 @@ class ArticleManagementActivity : AppCompatActivity() {
 		articlePriceInput.setText("")
 		selectedImageUri = null
 		selectedImageLabel.text = "Kein Bild gewählt"
-		glass01PriceInput.setText("")
-		glass02PriceInput.setText("")
-		isWeinCheckbox.isChecked = false
-		hasBottleCheckbox.isChecked = false
-		hasGlass01Checkbox.isChecked = false
-		hasGlass02Checkbox.isChecked = false
+		wineGlassDepositCheckbox.isChecked = false
+		wineBottleDepositCheckbox.isChecked = false
 		depositApplicableCheckbox.isChecked = false
 		glassDepositOptionalCheckbox.isChecked = false
 		hasLargeCheckbox.isChecked = false
 		hasSmallCheckbox.isChecked = false
 		largePriceInput.setText("")
 		smallPriceInput.setText("")
-		wineOptionsContainer.visibility = View.GONE
+		wineOptionsContainer.visibility = if (selectedCategory == CategoryType.WEIN) View.VISIBLE else View.GONE
 	}
 
 	private fun confirmDelete(article: ArticleEntity) {

@@ -64,9 +64,9 @@ object DailyReportArchiveBuilder {
 		val foodGross = foodSales.sumOf { it.grossAmountCents.toLong() }
 		val totalRevenue = taxableSales.sumOf { it.grossAmountCents.toLong() }
 
-		val depositReceived = taxableSales.sumOf { it.depositCents.toLong() }
+		val depositReceived = taxableSales.sumOf { it.depositCents.toLong().coerceAtLeast(0L) }
 		val returnedMovements = depositMovements.filter { it.movementType == DepositMovementType.RETURNED }
-		val depositReturned = returnedMovements.sumOf { it.totalAmountCents }
+		val depositReturned = returnedMovements.sumOf { kotlin.math.abs(it.totalAmountCents) }
 		val depositBalance = depositReceived - depositReturned
 
 		val fixedDepositBreakdown = fixedDepositSummaries(returnedMovements)
@@ -156,19 +156,19 @@ object DailyReportArchiveBuilder {
 				depositType = "BOTTLE",
 				displayName = "Flasche",
 				quantity = bottleMovements.sumOf { it.quantity },
-				amountCents = bottleMovements.sumOf { it.totalAmountCents }
+				amountCents = bottleMovements.sumOf { kotlin.math.abs(it.totalAmountCents) }
 			),
 			ArchivedDepositSummary(
 				depositType = "GLASS",
 				displayName = "Glas",
 				quantity = glassMovements.sumOf { it.quantity },
-				amountCents = glassMovements.sumOf { it.totalAmountCents }
+				amountCents = glassMovements.sumOf { kotlin.math.abs(it.totalAmountCents) }
 			),
 			ArchivedDepositSummary(
 				depositType = "PLATE",
 				displayName = "Teller",
 				quantity = plateMovements.sumOf { it.quantity },
-				amountCents = plateMovements.sumOf { it.totalAmountCents }
+				amountCents = plateMovements.sumOf { kotlin.math.abs(it.totalAmountCents) }
 			)
 		)
 	}
@@ -188,7 +188,7 @@ object DailyReportArchiveBuilder {
 					depositType = type,
 					displayName = list.firstOrNull()?.displayName ?: type,
 					quantity = list.sumOf { it.quantity },
-					amountCents = list.sumOf { it.totalAmountCents }
+					amountCents = list.sumOf { kotlin.math.abs(it.totalAmountCents) }
 				)
 			}
 	}

@@ -42,8 +42,6 @@ class SalesArticleAdapter(
 		private val imageView: ImageView = itemView.findViewById(R.id.salesArticleImage)
 		private val nameText: TextView = itemView.findViewById(R.id.salesArticleName)
 		private val priceText: TextView = itemView.findViewById(R.id.salesArticlePrice)
-		private val glass01PriceText: TextView = itemView.findViewById(R.id.salesArticleGlass01Price)
-		private val glass02PriceText: TextView = itemView.findViewById(R.id.salesArticleGlass02Price)
 		private val metaText: TextView = itemView.findViewById(R.id.salesArticleMeta)
 
 		fun bind(item: ArticleEntity) {
@@ -53,47 +51,22 @@ class SalesArticleAdapter(
 				|| item.category == com.speckdealer.app.data.CategoryType.ANGEBOT.name
 
 			if (isSnack) {
-				// Snacks: Groß/Klein-Preise statt Hauptpreis
 				when {
 					item.hasLargeOption && item.hasSmallOption -> {
-						priceText.text = "Groß: ${currencyFormatter.format(item.largePriceCents / 100.0)}"
-						glass01PriceText.text = "Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"
-						glass01PriceText.visibility = View.VISIBLE
+						priceText.text = "Groß: ${currencyFormatter.format(item.largePriceCents / 100.0)} / Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"
 					}
 					item.hasLargeOption -> {
 						priceText.text = "Groß: ${currencyFormatter.format(item.largePriceCents / 100.0)}"
-						glass01PriceText.visibility = View.GONE
 					}
 					item.hasSmallOption -> {
 						priceText.text = "Klein: ${currencyFormatter.format(item.smallPriceCents / 100.0)}"
-						glass01PriceText.visibility = View.GONE
 					}
 					else -> {
 						priceText.text = currencyFormatter.format(item.priceCents / 100.0)
-						glass01PriceText.visibility = View.GONE
 					}
 				}
-				glass02PriceText.visibility = View.GONE
 			} else {
-				// Hauptpreis: Flasche oder Standardpreis
-				val bottleLabel = if (item.isWein && item.hasBottleOption) "Flasche: " else ""
-				priceText.text = "$bottleLabel${currencyFormatter.format(item.priceCents / 100.0)}"
-
-				// Glas 0,1l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
-				if (item.isWein && item.hasGlass01Option && item.glass01PriceCents > 0) {
-					glass01PriceText.text = "Glas 0,1l: ${currencyFormatter.format(item.glass01PriceCents / 100.0)}"
-					glass01PriceText.visibility = View.VISIBLE
-				} else {
-					glass01PriceText.visibility = View.GONE
-				}
-
-				// Glas 0,2l — nur anzeigen wenn Wein + Option aktiv + Preis gesetzt
-				if (item.isWein && item.hasGlass02Option && item.glass02PriceCents > 0) {
-					glass02PriceText.text = "Glas 0,2l: ${currencyFormatter.format(item.glass02PriceCents / 100.0)}"
-					glass02PriceText.visibility = View.VISIBLE
-				} else {
-					glass02PriceText.visibility = View.GONE
-				}
+				priceText.text = currencyFormatter.format(item.priceCents / 100.0)
 			}
 
 			metaText.text = buildMetaText(item)
@@ -130,11 +103,13 @@ class SalesArticleAdapter(
 		}
 
 		private fun buildMetaText(item: ArticleEntity): String {
-			return when {
-				item.isWein -> "Wein"
-				item.depositApplicable -> "Pfandfähig"
-				else -> "Ohne Pfand"
+			if (item.isWein) {
+				val parts = mutableListOf<String>()
+				if (item.wineGlassDepositEnabled || item.glassDepositOptional) parts.add("Glaspfand")
+				if (item.wineBottleDepositEnabled || item.hasBottleOption) parts.add("Flaschenpfand")
+				return if (parts.isEmpty()) "Wein" else "Wein · ${parts.joinToString(" + ")}"
 			}
+			return if (item.depositApplicable) "Pfandfähig" else "Ohne Pfand"
 		}
 	}
 }
