@@ -18,6 +18,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.lifecycleScope
+import com.speckdealer.app.update.InstallReconcileAction
+import com.speckdealer.app.update.InstallStage
+import com.speckdealer.app.update.PendingInstallState
+import com.speckdealer.app.update.decideInstallReconcile
+import com.speckdealer.app.update.shouldShowInstallPrompt
+import com.speckdealer.app.update.snapshotArchiveApk
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -41,7 +47,11 @@ class MainActivity : AppCompatActivity() {
 	private var appUpdateManager: AppUpdateManager? = null
 	private var cachedUpdateInfo: AppUpdateInfo? = null
 	private var pendingApkFile: File? = null
+	private var installPermissionDialog: AlertDialog? = null
+	private var installPromptDialog: AlertDialog? = null
 	private var depositReturnInProgress = false
+	private var installFlowState: PendingInstallState = PendingInstallState()
+	private val updatePrefs by lazy { getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE) }
 
 	private data class ReleaseAsset(
 		val apkUrl: String,
@@ -95,6 +105,12 @@ class MainActivity : AppCompatActivity() {
 		private const val PREFERENCES_NAME = "speckdealer_prefs"
 		private const val KEY_LAST_VERSION_CODE = "last_version_code"
 		private const val KEY_LAST_VERSION_NAME = "last_version_name"
+		private const val KEY_INSTALL_STAGE = "install_stage"
+		private const val KEY_INSTALL_EXPECTED_CODE = "install_expected_code"
+		private const val KEY_INSTALL_EXPECTED_NAME = "install_expected_name"
+		private const val KEY_INSTALL_APK_PATH = "install_apk_path"
+		private const val KEY_INSTALL_STARTED_AT = "install_started_at"
+		private const val KEY_INSTALL_MESSAGE = "install_message"
 		private const val GITHUB_API_LATEST = "https://api.github.com/repos/FightofDestinyHD/Speckdealer_mobil/releases/latest"
 	}
 
@@ -119,6 +135,7 @@ class MainActivity : AppCompatActivity() {
 		}
 
 		try {
+			installFlowState = loadInstallFlowState()
 			DevModeConfig.setDevEntryEnabled(BuildConfig.ENABLE_DEV_MODE)
 			setupMenuTiles()
 			showChangelogIfUpdated()
@@ -130,10 +147,21 @@ class MainActivity : AppCompatActivity() {
 		}
 	}
 
+	override fun onStart() {
+		super.onStart()
+		reconcileInstallFlowState("onStart")
+	}
+
+	override fun onNewIntent(intent: Intent?) {
+		super.onNewIntent(intent)
+		reconcileInstallFlowState("onNewIntent")
+	}
+
 	override fun onResume() {
 		super.onResume()
 		StartupCrashLogger.logEvent(this, "MainActivity.onResume")
 		try {
+			reconcileInstallFlowState("onResume")
 			if (isInstalledFromPlayStore()) {
 				checkForImmediateUpdate()
 			}
@@ -578,30 +606,42 @@ class MainActivity : AppCompatActivity() {
 
 
 	private fun installApkFile(apkFile: File) {
+		if (isFinishing || isDestroyed) return
+		val downloaded = snapshotArchiveApk(packageManager, apkFile)
+		if (downloaded == null) {
+			Snackbar.make(findViewById(android.R.id.content), "APK-Metadaten konnten nicht gelesen werden.", Snackbar.LENGTH_LONG).show()
+			return
+		}
+		installFlowState = PendingInstallState(
+			stage = InstallStage.INSTALL_WAITING_USER,
+			expectedVersionCode = downloaded.versionCode,
+			expectedVersionName = downloaded.versionName,
+			apkPath = apkFile.absolutePath,
+			startedAtUtcMs = System.currentTimeMillis(),
+			lastMessage = "Installation wartet auf Bestätigung"
+		)
+		persistInstallFlowState(installFlowState)
+		pendingApkFile = apkFile
 		// Ab Android 8: Berechtigung für unbekannte Quellen prüfen
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			if (!packageManager.canRequestPackageInstalls()) {
-				pendingApkFile = apkFile
-				AlertDialog.Builder(this)
-					.setTitle("Installation erlauben")
-					.setMessage("Bitte erlaube die Installation aus unbekannten Quellen für diese App, dann wird das Update automatisch installiert.")
-					.setPositiveButton("Einstellungen öffnen") { _, _ ->
-						val intent = Intent(
-							Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-							Uri.parse("package:$packageName")
-						)
-						startActivityForResult(intent, REQUEST_INSTALL_PERMISSION)
-					}
-					.setNegativeButton("Abbrechen", null)
-					.show()
+				showInstallPermissionDialog()
 				return
 			}
 		}
-		doInstallApk(apkFile)
+		showInstallReadyDialog(apkFile)
 	}
 
 	private fun doInstallApk(apkFile: File) {
 		try {
+			if (!apkFile.exists() || !apkFile.canRead()) {
+				installFlowState = installFlowState.copy(stage = InstallStage.INSTALL_FAILED, lastMessage = "APK nicht lesbar")
+				persistInstallFlowState(installFlowState)
+				Snackbar.make(findViewById(android.R.id.content), "APK-Datei fehlt oder ist nicht lesbar.", Snackbar.LENGTH_LONG).show()
+				return
+			}
+			installFlowState = installFlowState.copy(stage = InstallStage.INSTALL_STARTED, lastMessage = "Installation gestartet")
+			persistInstallFlowState(installFlowState)
 			val apkUri = FileProvider.getUriForFile(
 				this,
 				"${packageName}.fileprovider",
@@ -614,6 +654,8 @@ class MainActivity : AppCompatActivity() {
 			}
 			startActivity(installIntent)
 		} catch (e: Exception) {
+			installFlowState = installFlowState.copy(stage = InstallStage.INSTALL_FAILED, lastMessage = e.message.orEmpty())
+			persistInstallFlowState(installFlowState)
 			e.printStackTrace()
 			Snackbar.make(
 				findViewById(android.R.id.content),
@@ -629,12 +671,162 @@ class MainActivity : AppCompatActivity() {
 			val apk = pendingApkFile
 			if (apk != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
 				&& packageManager.canRequestPackageInstalls()) {
-				pendingApkFile = null
 				doInstallApk(apk)
+			} else {
+				installFlowState = installFlowState.copy(stage = InstallStage.INSTALL_CANCELLED, lastMessage = "Installation nicht erlaubt")
+				persistInstallFlowState(installFlowState)
 			}
 		}
 	}
 
+
+	private fun showInstallPermissionDialog() {
+		if (isFinishing || isDestroyed) return
+		if (installFlowState.stage == InstallStage.INSTALL_SUCCESS) return
+		installPermissionDialog?.dismiss()
+		installPermissionDialog = AlertDialog.Builder(this)
+			.setTitle("Installation erlauben")
+			.setMessage("Bitte erlaube die Installation aus unbekannten Quellen für diese App, dann wird das Update automatisch installiert.")
+			.setPositiveButton("Einstellungen öffnen") { _, _ ->
+				val intent = Intent(
+					Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+					Uri.parse("package:$packageName")
+				)
+				startActivityForResult(intent, REQUEST_INSTALL_PERMISSION)
+			}
+			.setNegativeButton("Abbrechen") { _, _ ->
+				installFlowState = installFlowState.copy(stage = InstallStage.INSTALL_CANCELLED, lastMessage = "Vom Nutzer abgebrochen")
+				persistInstallFlowState(installFlowState)
+			}
+			.setOnDismissListener {
+				installPermissionDialog = null
+			}
+			.create()
+		installPermissionDialog?.show()
+	}
+
+	private fun showInstallReadyDialog(apkFile: File) {
+		if (isFinishing || isDestroyed) return
+		val installedVersionCode = runCatching {
+			PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
+		}.getOrDefault(0L)
+		val shouldShow = shouldShowInstallPrompt(
+			pending = installFlowState,
+			installedVersionCode = installedVersionCode,
+			apkExists = apkFile.exists(),
+			apkReadable = apkFile.canRead()
+		)
+		if (!shouldShow) {
+			reconcileInstallFlowState("showInstallReadyDialog")
+			return
+		}
+		installPromptDialog?.dismiss()
+		installPromptDialog = AlertDialog.Builder(this)
+			.setTitle("Update installieren")
+			.setMessage("Die APK ist geprüft und bereit. Jetzt Installation starten?")
+			.setPositiveButton("Installieren") { _, _ ->
+				doInstallApk(apkFile)
+			}
+			.setNegativeButton("Später") { _, _ ->
+				persistInstallFlowState(installFlowState.copy(stage = InstallStage.INSTALL_WAITING_USER, lastMessage = "Installation zurückgestellt"))
+			}
+			.setOnDismissListener {
+				installPromptDialog = null
+			}
+			.create()
+		installPromptDialog?.show()
+	}
+
+	private fun loadInstallFlowState(): PendingInstallState {
+		val stageName = updatePrefs.getString(KEY_INSTALL_STAGE, InstallStage.NONE.name).orEmpty()
+		val stage = runCatching { InstallStage.valueOf(stageName) }.getOrDefault(InstallStage.NONE)
+		return PendingInstallState(
+			stage = stage,
+			expectedVersionCode = updatePrefs.getLong(KEY_INSTALL_EXPECTED_CODE, 0L),
+			expectedVersionName = updatePrefs.getString(KEY_INSTALL_EXPECTED_NAME, "").orEmpty(),
+			apkPath = updatePrefs.getString(KEY_INSTALL_APK_PATH, "").orEmpty(),
+			startedAtUtcMs = updatePrefs.getLong(KEY_INSTALL_STARTED_AT, 0L),
+			lastMessage = updatePrefs.getString(KEY_INSTALL_MESSAGE, "").orEmpty()
+		)
+	}
+
+	private fun persistInstallFlowState(state: PendingInstallState) {
+		installFlowState = state
+		updatePrefs.edit()
+			.putString(KEY_INSTALL_STAGE, state.stage.name)
+			.putLong(KEY_INSTALL_EXPECTED_CODE, state.expectedVersionCode)
+			.putString(KEY_INSTALL_EXPECTED_NAME, state.expectedVersionName)
+			.putString(KEY_INSTALL_APK_PATH, state.apkPath)
+			.putLong(KEY_INSTALL_STARTED_AT, state.startedAtUtcMs)
+			.putString(KEY_INSTALL_MESSAGE, state.lastMessage)
+			.apply()
+	}
+
+	private fun clearInstallFlowState() {
+		pendingApkFile = null
+		installPermissionDialog?.dismiss()
+		installPermissionDialog = null
+		installPromptDialog?.dismiss()
+		installPromptDialog = null
+		installFlowState = PendingInstallState(stage = InstallStage.NONE)
+		updatePrefs.edit()
+			.remove(KEY_INSTALL_STAGE)
+			.remove(KEY_INSTALL_EXPECTED_CODE)
+			.remove(KEY_INSTALL_EXPECTED_NAME)
+			.remove(KEY_INSTALL_APK_PATH)
+			.remove(KEY_INSTALL_STARTED_AT)
+			.remove(KEY_INSTALL_MESSAGE)
+			.apply()
+	}
+
+	private fun reconcileInstallFlowState(source: String) {
+		val installedInfo = runCatching {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+				packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
+			} else {
+				@Suppress("DEPRECATION")
+				packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+			}
+		}.getOrNull()
+		val installedVersionCode = installedInfo?.let { PackageInfoCompat.getLongVersionCode(it) } ?: 0L
+		val installedVersionName = installedInfo?.versionName.orEmpty().ifBlank { "(leer)" }
+		val action = decideInstallReconcile(
+			installedVersionCode = installedVersionCode,
+			expectedVersionCode = installFlowState.expectedVersionCode,
+			hasPendingInstall = installFlowState.stage != InstallStage.NONE
+		)
+		when (action) {
+			InstallReconcileAction.MARK_SUCCESS_AND_CLEAR -> {
+				StartupCrashLogger.logEvent(this, "Installationsstatus bereinigt ($source): erfolgreich installiert code=$installedVersionCode name=$installedVersionName")
+				Snackbar.make(findViewById(android.R.id.content), "Update erfolgreich installiert (Code $installedVersionCode).", Snackbar.LENGTH_LONG).show()
+				clearInstallFlowState()
+			}
+			InstallReconcileAction.MARK_CANCELLED_AND_CLEAR -> {
+				StartupCrashLogger.logEvent(this, "Installationsstatus bereinigt ($source): ungültiger Pending-Status")
+				clearInstallFlowState()
+			}
+			InstallReconcileAction.KEEP_PENDING -> {
+				val apk = installFlowState.apkPath.takeIf { it.isNotBlank() }?.let { File(it) }
+				val shouldShow = shouldShowInstallPrompt(
+					pending = installFlowState,
+					installedVersionCode = installedVersionCode,
+					apkExists = apk?.exists() == true,
+					apkReadable = apk?.canRead() == true
+				)
+				if (!shouldShow && installFlowState.stage == InstallStage.INSTALL_WAITING_USER) {
+					persistInstallFlowState(installFlowState.copy(stage = InstallStage.INSTALL_CANCELLED, lastMessage = "APK nicht mehr verfügbar"))
+				}
+			}
+		}
+	}
+
+	override fun onDestroy() {
+		installPermissionDialog?.dismiss()
+		installPermissionDialog = null
+		installPromptDialog?.dismiss()
+		installPromptDialog = null
+		super.onDestroy()
+	}
 
 	private fun isImmediateUpdateAvailable(info: AppUpdateInfo): Boolean {
 		return info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
