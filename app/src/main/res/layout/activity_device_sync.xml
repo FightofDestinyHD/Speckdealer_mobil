@@ -36,6 +36,24 @@
 			android:textSize="18sp"
 			android:text="Offline" />
 
+		<TextView
+			android:id="@+id/syncDiscoveryText"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:textColor="#E6FFFFFF"
+			android:textSize="15sp"
+			android:text="Suche nach Geräten …" />
+
+		<TextView
+			android:id="@+id/syncLastSyncText"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="4dp"
+			android:textColor="#E6FFFFFF"
+			android:textSize="14sp"
+			android:text="Letzte erfolgreiche Synchronisierung: –" />
+
 		<EditText
 			android:id="@+id/syncHostInput"
 			style="@style/Widget.Speckdealer.DeviceSyncInput"
@@ -64,6 +82,23 @@
 			android:hint="Gerätecode"
 			android:inputType="textPassword"
 			android:text="123456" />
+
+		<Button
+			android:id="@+id/syncRefreshDevicesButton"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:minHeight="48dp"
+			android:layout_marginTop="12dp"
+			android:text="Geräte erneut suchen"
+			android:backgroundTint="#37474F"
+			android:textColor="#FFFFFF" />
+
+		<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/syncDiscoveredDevicesRecyclerView"
+			android:layout_width="match_parent"
+			android:layout_height="200dp"
+			android:layout_marginTop="8dp"
+			android:overScrollMode="ifContentScrolls" />
 
 		<Button
 			android:id="@+id/syncStartHostButton"

@@ -1,8 +1,14 @@
 package com.speckdealer.app.data
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import android.os.NetworkOnMainThreadException
 import android.util.Log
+import com.speckdealer.app.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,15 +47,22 @@ data class SyncConnectionState(
 	val host: String = "",
 	val port: Int = 0,
 	val pairingCode: String = "",
-	val message: String = ""
+	val message: String = "",
+	val localDeviceName: String = "",
+	val isDiscovering: Boolean = false,
+	val discoveredDevices: List<DiscoveredSyncDevice> = emptyList(),
+	val pendingPairingDeviceId: String? = null,
+	val lastSuccessfulSyncUtcMs: Long = 0L
 )
 
 class LocalOrderSyncManager(
 	context: Context,
 	dataMode: String
 ) {
-	private val repository = OrderSyncRepositoryRegistry.get(context, dataMode)
-	private val stateFlow = MutableStateFlow(SyncConnectionState())
+	private val appContext = context.applicationContext
+	private val repository = OrderSyncRepositoryRegistry.get(appContext, dataMode)
+	private val localDeviceName = normalizeDeviceName("Speckdealer ${Build.MODEL}")
+	private val stateFlow = MutableStateFlow(SyncConnectionState(localDeviceName = localDeviceName))
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private val syncMutex = Mutex()
 	private val running = AtomicBoolean(false)
@@ -60,15 +73,88 @@ class LocalOrderSyncManager(
 	private var clientHost: String = ""
 	private var clientPort: Int = 0
 	private var clientCode: String = ""
-	private val preferences = context.getSharedPreferences("speckdealer_sync_$dataMode", Context.MODE_PRIVATE)
+	private val preferences = appContext.getSharedPreferences("speckdealer_sync_$dataMode", Context.MODE_PRIVATE)
+	private val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+	private val nsdManager = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
+	private var registrationListener: NsdManager.RegistrationListener? = null
+	private var discoveryListener: NsdManager.DiscoveryListener? = null
+	private val discoveryResolveListeners = mutableMapOf<String, NsdManager.ResolveListener>()
+	private val knownPairedDeviceIds = linkedSetOf<String>()
+	private var pendingPairingDevice: DiscoveredSyncDevice? = null
+	private var pendingPairingCode: String = ""
 
 	fun state(): StateFlow<SyncConnectionState> = stateFlow
 
 	init {
+		loadPairedDevices()
 		restoreConnectionState()
+		beginDiscovery()
+		registerNetworkCallback()
 	}
 
 	fun localDeviceId(): String = repository.localDeviceId()
+
+	fun localDeviceDisplayName(): String = localDeviceName
+
+	fun approvePendingPairing(): Boolean {
+		val pending = pendingPairingDevice ?: return false
+		if (pending.deviceId.isBlank()) return false
+		knownPairedDeviceIds += pending.deviceId
+		persistPairedDevices()
+		val shouldConnectNow = pending.host.isNotBlank() && pending.port in 1024..65535 && pendingPairingCode.length >= 4
+		pendingPairingDevice = null
+		updateState(stateFlow.value.copy(pendingPairingDeviceId = null, message = "Gerät gekoppelt: ${pending.displayName}"))
+		if (shouldConnectNow) {
+			val code = pendingPairingCode
+			pendingPairingCode = ""
+			connectClient(pending.host, pending.port, code)
+		} else {
+			pendingPairingCode = ""
+		}
+		return true
+	}
+
+	fun pendingPairingDevice(): DiscoveredSyncDevice? = pendingPairingDevice
+
+	fun rejectPendingPairing() {
+		pendingPairingDevice = null
+		pendingPairingCode = ""
+		updateState(stateFlow.value.copy(pendingPairingDeviceId = null, message = "Kopplung abgelehnt"))
+	}
+
+	fun removePairedDevice(deviceId: String) {
+		if (deviceId.isBlank()) return
+		knownPairedDeviceIds.remove(deviceId)
+		persistPairedDevices()
+		updateState(stateFlow.value.copy(message = "Gerät entfernt"))
+	}
+
+	fun refreshDiscovery() {
+		beginDiscovery(forceRestart = true)
+	}
+
+	fun connectToDiscoveredDevice(deviceId: String, pairingCode: String): PairingDecision {
+		val device = stateFlow.value.discoveredDevices.firstOrNull { it.deviceId == deviceId }
+			?: return PairingDecision(PairingRequirement.INVALID, "Gerät nicht gefunden")
+		val decision = evaluatePairingRequirement(
+			remoteDeviceId = device.deviceId,
+			remoteHost = device.host,
+			remotePort = device.port,
+			pairedDeviceIds = knownPairedDeviceIds
+		)
+		when (decision.requirement) {
+			PairingRequirement.AUTO_RECONNECT -> {
+				connectClient(device.host, device.port, pairingCode)
+			}
+			PairingRequirement.REQUIRES_CONFIRMATION -> {
+				pendingPairingDevice = device
+				pendingPairingCode = pairingCode
+				updateState(stateFlow.value.copy(pendingPairingDeviceId = device.deviceId, message = "Kopplung bestätigen: ${device.displayName}"))
+			}
+			PairingRequirement.INVALID -> Unit
+		}
+		return decision
+	}
 
 	fun startHost(port: Int, pairingCode: String) {
 		disconnect(clearPersistedState = false)
@@ -77,16 +163,18 @@ class LocalOrderSyncManager(
 			try {
 				val socket = ServerSocket(port)
 				serverSocket = socket
+				val host = resolveLocalHostAddress()
 				updateState(
-					SyncConnectionState(
+					stateFlow.value.copy(
 						role = SyncRole.HOST,
 						status = OrderSyncStatus.SYNCHRONIZED,
-						host = resolveLocalHostAddress(),
+						host = host,
 						port = port,
 						pairingCode = pairingCode,
 						message = "Host aktiv"
 					)
 				)
+				registerLocalSyncService(host = host, port = port)
 				acceptJob?.cancel()
 				acceptJob = scope.launch(Dispatchers.IO) { acceptClients(socket, pairingCode) }
 			} catch (error: Exception) {
@@ -103,7 +191,7 @@ class LocalOrderSyncManager(
 		clientCode = pairingCode.trim()
 		running.set(true)
 		updateState(
-			SyncConnectionState(
+			stateFlow.value.copy(
 				role = SyncRole.CLIENT,
 				status = OrderSyncStatus.SYNCING,
 				host = clientHost,
@@ -134,12 +222,13 @@ class LocalOrderSyncManager(
 		pollingJob = null
 		syncJob?.cancel()
 		syncJob = null
+		unregisterLocalSyncService()
 		try {
 			serverSocket?.close()
 		} catch (_: Exception) {
 		}
 		serverSocket = null
-		updateState(SyncConnectionState(role = SyncRole.NONE, status = OrderSyncStatus.OFFLINE, message = "Getrennt"))
+		updateState(stateFlow.value.copy(role = SyncRole.NONE, status = OrderSyncStatus.OFFLINE, host = "", port = 0, pairingCode = "", message = "Getrennt"))
 		if (clearPersistedState) {
 			clearPersistedState()
 		} else {
@@ -149,6 +238,8 @@ class LocalOrderSyncManager(
 
 	fun shutdown() {
 		disconnect(true)
+		stopDiscovery()
+		unregisterNetworkCallback()
 		scope.cancel()
 	}
 
@@ -178,6 +269,10 @@ class LocalOrderSyncManager(
 	}
 
 	private suspend fun syncNowInternal() = syncMutex.withLock {
+		if (!isLocalNetworkAvailable()) {
+			updateError("Kein lokales WLAN verfügbar")
+			return
+		}
 		val current = stateFlow.value
 		if (current.role != SyncRole.CLIENT) return
 		if (!running.get()) return
@@ -193,6 +288,8 @@ class LocalOrderSyncManager(
 			val request = JSONObject().apply {
 				put("type", "SYNC_REQUEST")
 				put("deviceId", repository.localDeviceId())
+				put("deviceName", localDeviceName)
+				put("appVersion", BuildConfig.VERSION_NAME)
 				put("pairingCode", current.pairingCode)
 				put("orders", JSONArray().apply {
 					repository.loadAll().forEach { put(it.toJson()) }
@@ -232,7 +329,8 @@ class LocalOrderSyncManager(
 					incoming += OrderRecord.fromJson(orders.getJSONObject(i))
 				}
 				repository.upsertIncoming(incoming)
-				updateState(stateFlow.value.copy(status = OrderSyncStatus.SYNCHRONIZED, message = "Synchronisiert"))
+				val now = System.currentTimeMillis()
+				updateState(stateFlow.value.copy(status = OrderSyncStatus.SYNCHRONIZED, message = "Synchronisiert", lastSuccessfulSyncUtcMs = now))
 				persistState(stateFlow.value)
 			}
 		} catch (error: NetworkOnMainThreadException) {
@@ -282,8 +380,32 @@ class LocalOrderSyncManager(
 				writeError(out, "Ungültiger Nachrichtentyp")
 				return
 			}
+			val remoteDeviceId = normalizeDeviceId(request.optString("deviceId", ""))
+			if (remoteDeviceId.isBlank()) {
+				writeError(out, "Geräte-ID fehlt")
+				return
+			}
 			if (request.optString("pairingCode") != expectedCode) {
 				writeError(out, "Gerätecode ungültig")
+				return
+			}
+			val appVersion = request.optString("appVersion", "")
+			if (appVersion.isBlank()) {
+				writeError(out, "Inkompatible App-Version")
+				return
+			}
+			if (!knownPairedDeviceIds.contains(remoteDeviceId)) {
+				pendingPairingDevice = DiscoveredSyncDevice(
+					deviceId = remoteDeviceId,
+					displayName = normalizeDeviceName(request.optString("deviceName", "")),
+					host = it.inetAddress?.hostAddress.orEmpty(),
+					port = 0,
+					lastSeenUtcMs = System.currentTimeMillis(),
+					isPaired = false
+				)
+				pendingPairingCode = ""
+				updateState(stateFlow.value.copy(pendingPairingDeviceId = remoteDeviceId, message = "Neue Kopplungsanfrage: ${pendingPairingDevice?.displayName}"))
+				writeError(out, "Gerät nicht gekoppelt")
 				return
 			}
 			val incomingJson = request.optJSONArray("orders") ?: JSONArray()
@@ -323,10 +445,10 @@ class LocalOrderSyncManager(
 
 	private fun persistState(state: SyncConnectionState) {
 		preferences.edit()
-			.putString("role", state.role.name)
-			.putString("host", state.host)
-			.putInt("port", state.port)
-			.putString("code", state.pairingCode)
+			.putString(KEY_ROLE, state.role.name)
+			.putString(KEY_HOST, state.host)
+			.putInt(KEY_PORT, state.port)
+			.putString(KEY_CODE, state.pairingCode)
 			.apply()
 	}
 
@@ -343,6 +465,9 @@ class LocalOrderSyncManager(
 		val normalized = message.lowercase()
 		return when {
 			normalized.contains("gerätecode") -> "Gerätecode ist falsch."
+			normalized.contains("nicht gekoppelt") -> "Gerät ist noch nicht gekoppelt."
+			normalized.contains("geräte-id fehlt") -> "Geräte-ID fehlt."
+			normalized.contains("inkompatible app-version") -> "Geräteversionen sind nicht kompatibel."
 			normalized.contains("ungültige antwortgröße") -> "Ungültige Antwort vom Host."
 			normalized.contains("ungültiger antworttyp") -> "Ungültige Antwort vom Host."
 			normalized.contains("zu viele bestellungen") -> "Datenfehler beim Synchronisieren."
@@ -359,12 +484,14 @@ class LocalOrderSyncManager(
 		}
 	}
 
+	private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
 	private fun restoreConnectionState() {
-		val roleName = preferences.getString("role", SyncRole.NONE.name).orEmpty()
+		val roleName = preferences.getString(KEY_ROLE, SyncRole.NONE.name).orEmpty()
 		val role = runCatching { SyncRole.valueOf(roleName) }.getOrDefault(SyncRole.NONE)
-		val host = preferences.getString("host", "").orEmpty()
-		val port = preferences.getInt("port", 0)
-		val code = preferences.getString("code", "").orEmpty()
+		val host = preferences.getString(KEY_HOST, "").orEmpty()
+		val port = preferences.getInt(KEY_PORT, 0)
+		val code = preferences.getString(KEY_CODE, "").orEmpty()
 		when (role) {
 			SyncRole.HOST -> if (port in 1024..65535 && code.length >= 4) {
 				runCatching { startHost(port, code) }
@@ -377,8 +504,180 @@ class LocalOrderSyncManager(
 	}
 
 	private fun clearPersistedState() {
-		preferences.edit().clear().apply()
+		preferences.edit().remove(KEY_ROLE).remove(KEY_HOST).remove(KEY_PORT).remove(KEY_CODE).apply()
 	}
+
+	private fun loadPairedDevices() {
+		val stored = preferences.getStringSet(KEY_PAIRED_DEVICES, emptySet()).orEmpty()
+		knownPairedDeviceIds.clear()
+		knownPairedDeviceIds.addAll(stored.map { normalizeDeviceId(it) }.filter { it.isNotBlank() })
+	}
+
+	private fun persistPairedDevices() {
+		preferences.edit().putStringSet(KEY_PAIRED_DEVICES, knownPairedDeviceIds.toSet()).apply()
+	}
+
+	private fun beginDiscovery(forceRestart: Boolean = false) {
+		if (!isLocalNetworkAvailable()) {
+			updateState(stateFlow.value.copy(isDiscovering = false, message = "Kein lokales Netzwerk"))
+			return
+		}
+		if (forceRestart) {
+			stopDiscovery()
+		}
+		if (discoveryListener != null) return
+		val listener = object : NsdManager.DiscoveryListener {
+			override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+				updateState(stateFlow.value.copy(isDiscovering = false, message = "Gerätesuche fehlgeschlagen ($errorCode)"))
+				runCatching { nsdManager.stopServiceDiscovery(this) }
+				discoveryListener = null
+			}
+
+			override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+				runCatching { nsdManager.stopServiceDiscovery(this) }
+				discoveryListener = null
+				updateState(stateFlow.value.copy(isDiscovering = false, message = "Gerätesuche gestoppt ($errorCode)"))
+			}
+
+			override fun onDiscoveryStarted(serviceType: String) {
+				updateState(stateFlow.value.copy(isDiscovering = true, message = "Suche nach Geräten …"))
+			}
+
+			override fun onDiscoveryStopped(serviceType: String) {
+				discoveryListener = null
+				updateState(stateFlow.value.copy(isDiscovering = false, message = "Gerätesuche beendet"))
+			}
+
+			override fun onServiceFound(serviceInfo: NsdServiceInfo) {
+				if (serviceInfo.serviceType != NSD_SERVICE_TYPE) return
+				if (serviceInfo.serviceName == localServiceName()) return
+				resolveDiscoveredService(serviceInfo)
+			}
+
+			override fun onServiceLost(serviceInfo: NsdServiceInfo) {
+				val name = serviceInfo.serviceName.orEmpty()
+				val updated = stateFlow.value.discoveredDevices.filterNot { it.displayName == name }
+				updateState(stateFlow.value.copy(discoveredDevices = updated, message = "Gerät entfernt"))
+			}
+		}
+		discoveryListener = listener
+		runCatching {
+			nsdManager.discoverServices(NSD_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
+		}.onFailure {
+			discoveryListener = null
+			updateState(stateFlow.value.copy(isDiscovering = false, message = "Gerätesuche nicht verfügbar"))
+		}
+	}
+
+	private fun stopDiscovery() {
+		val listener = discoveryListener ?: return
+		runCatching { nsdManager.stopServiceDiscovery(listener) }
+		discoveryListener = null
+		updateState(stateFlow.value.copy(isDiscovering = false))
+	}
+
+	private fun registerLocalSyncService(host: String, port: Int) {
+		unregisterLocalSyncService()
+		val serviceInfo = NsdServiceInfo().apply {
+			serviceName = localServiceName()
+			serviceType = NSD_SERVICE_TYPE
+			setPort(port)
+			setAttribute("deviceId", repository.localDeviceId())
+			setAttribute("deviceName", localDeviceName)
+			setAttribute("appVersion", BuildConfig.VERSION_NAME)
+			setAttribute("hostHint", host)
+		}
+		val listener = object : NsdManager.RegistrationListener {
+			override fun onServiceRegistered(info: NsdServiceInfo) {
+				updateState(stateFlow.value.copy(message = "Dienst im Netzwerk sichtbar"))
+			}
+
+			override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
+				updateError("Dienstregistrierung fehlgeschlagen ($errorCode)")
+			}
+
+			override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
+
+			override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) {
+				updateError("Dienstabmeldung fehlgeschlagen ($errorCode)")
+			}
+		}
+		registrationListener = listener
+		runCatching { nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener) }
+			.onFailure { updateError("Dienstregistrierung nicht möglich") }
+	}
+
+	private fun unregisterLocalSyncService() {
+		val listener = registrationListener ?: return
+		runCatching { nsdManager.unregisterService(listener) }
+		registrationListener = null
+	}
+
+	private fun resolveDiscoveredService(serviceInfo: NsdServiceInfo) {
+		val key = serviceInfo.serviceName.orEmpty().ifBlank { "${serviceInfo.serviceType}:${System.nanoTime()}" }
+		if (discoveryResolveListeners.containsKey(key)) return
+		val listener = object : NsdManager.ResolveListener {
+			override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {
+				discoveryResolveListeners.remove(key)
+			}
+
+			override fun onServiceResolved(info: NsdServiceInfo) {
+				discoveryResolveListeners.remove(key)
+				val host = info.host?.hostAddress.orEmpty()
+				val port = info.port
+				val deviceId = normalizeDeviceId(info.attributes?.get("deviceId")?.toString(Charsets.UTF_8).orEmpty())
+				if (host.isBlank() || port !in 1024..65535 || deviceId == repository.localDeviceId()) return
+				val displayName = normalizeDeviceName(info.attributes?.get("deviceName")?.toString(Charsets.UTF_8).orEmpty().ifBlank { info.serviceName })
+				val discovered = DiscoveredSyncDevice(
+					deviceId = deviceId,
+					displayName = displayName,
+					host = host,
+					port = port,
+					lastSeenUtcMs = System.currentTimeMillis(),
+					isPaired = knownPairedDeviceIds.contains(deviceId)
+				)
+				val merged = mergeVisibleDevices(
+					existing = stateFlow.value.discoveredDevices,
+					incoming = listOf(discovered),
+					nowUtcMs = System.currentTimeMillis()
+				)
+				updateState(stateFlow.value.copy(discoveredDevices = merged, message = "${merged.size} Gerät(e) gefunden"))
+			}
+		}
+		discoveryResolveListeners[key] = listener
+		runCatching { nsdManager.resolveService(serviceInfo, listener) }
+			.onFailure { discoveryResolveListeners.remove(key) }
+	}
+
+	private fun registerNetworkCallback() {
+		val callback = object : ConnectivityManager.NetworkCallback() {
+			override fun onAvailable(network: Network) {
+				beginDiscovery(forceRestart = true)
+			}
+
+			override fun onLost(network: Network) {
+				updateState(stateFlow.value.copy(isDiscovering = false, discoveredDevices = emptyList(), message = "Netzwerk getrennt"))
+			}
+		}
+		networkCallback = callback
+		runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
+	}
+
+	private fun unregisterNetworkCallback() {
+		val callback = networkCallback ?: return
+		runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+		networkCallback = null
+	}
+
+	private fun isLocalNetworkAvailable(): Boolean {
+		val active = connectivityManager.activeNetwork ?: return false
+		val capabilities = connectivityManager.getNetworkCapabilities(active) ?: return false
+		val hasWifi = capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+		val hasEthernet = capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+		return hasWifi || hasEthernet
+	}
+
+	private fun localServiceName(): String = "Speckdealer-${repository.localDeviceId().take(8)}"
 
 	private fun resolveLocalHostAddress(): String {
 		return runCatching {
@@ -396,5 +695,11 @@ class LocalOrderSyncManager(
 		private const val MAX_MESSAGE_BYTES = 512_000
 		private const val MAX_ORDERS_PER_SYNC = 500
 		private const val LOG_TAG = "OrderSync"
+		private const val NSD_SERVICE_TYPE = "_speckdealer-sync._tcp."
+		private const val KEY_ROLE = "role"
+		private const val KEY_HOST = "host"
+		private const val KEY_PORT = "port"
+		private const val KEY_CODE = "code"
+		private const val KEY_PAIRED_DEVICES = "paired_device_ids"
 	}
 }
