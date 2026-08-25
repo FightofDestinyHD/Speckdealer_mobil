@@ -152,6 +152,11 @@ class MainActivity : AppCompatActivity() {
 		reconcileInstallFlowState("onStart")
 	}
 
+	override fun onStop() {
+		closeInstallDialogs("onStop")
+		super.onStop()
+	}
+
 	override fun onNewIntent(intent: Intent?) {
 		super.onNewIntent(intent)
 		reconcileInstallFlowState("onNewIntent")
@@ -668,6 +673,7 @@ class MainActivity : AppCompatActivity() {
 	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 		super.onActivityResult(requestCode, resultCode, data)
 		if (requestCode == REQUEST_INSTALL_PERMISSION) {
+			StartupCrashLogger.logEvent(this, "InstallFlow activityResult install-permission received")
 			val apk = pendingApkFile
 			if (apk != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
 				&& packageManager.canRequestPackageInstalls()) {
@@ -725,9 +731,11 @@ class MainActivity : AppCompatActivity() {
 			.setTitle("Update installieren")
 			.setMessage("Die APK ist geprüft und bereit. Jetzt Installation starten?")
 			.setPositiveButton("Installieren") { _, _ ->
+				StartupCrashLogger.logEvent(this, "InstallFlow user action: install clicked")
 				doInstallApk(apkFile)
 			}
 			.setNegativeButton("Später") { _, _ ->
+				StartupCrashLogger.logEvent(this, "InstallFlow user action: postponed")
 				persistInstallFlowState(installFlowState.copy(stage = InstallStage.INSTALL_WAITING_USER, lastMessage = "Installation zurückgestellt"))
 			}
 			.setOnDismissListener {
@@ -751,6 +759,10 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun persistInstallFlowState(state: PendingInstallState) {
+		StartupCrashLogger.logEvent(
+			this,
+			"InstallFlow persist | stage=${state.stage} | expectedCode=${state.expectedVersionCode} | apkPathSet=${state.apkPath.isNotBlank()} | msg=${state.lastMessage.take(80)}"
+		)
 		installFlowState = state
 		updatePrefs.edit()
 			.putString(KEY_INSTALL_STAGE, state.stage.name)
@@ -763,11 +775,9 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun clearInstallFlowState() {
+		StartupCrashLogger.logEvent(this, "InstallFlow clear pending status")
 		pendingApkFile = null
-		installPermissionDialog?.dismiss()
-		installPermissionDialog = null
-		installPromptDialog?.dismiss()
-		installPromptDialog = null
+		closeInstallDialogs("clearInstallFlowState")
 		installFlowState = PendingInstallState(stage = InstallStage.NONE)
 		updatePrefs.edit()
 			.remove(KEY_INSTALL_STAGE)
@@ -780,6 +790,7 @@ class MainActivity : AppCompatActivity() {
 	}
 
 	private fun reconcileInstallFlowState(source: String) {
+		val previous = installFlowState
 		val installedInfo = runCatching {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 				packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
@@ -790,11 +801,18 @@ class MainActivity : AppCompatActivity() {
 		}.getOrNull()
 		val installedVersionCode = installedInfo?.let { PackageInfoCompat.getLongVersionCode(it) } ?: 0L
 		val installedVersionName = installedInfo?.versionName.orEmpty().ifBlank { "(leer)" }
+		StartupCrashLogger.logEvent(
+			this,
+			"InstallFlow reconcile($source) | stage=${installFlowState.stage} | expectedCode=${installFlowState.expectedVersionCode} | installedCode=$installedVersionCode"
+		)
 		val action = decideInstallReconcile(
 			installedVersionCode = installedVersionCode,
 			expectedVersionCode = installFlowState.expectedVersionCode,
 			hasPendingInstall = installFlowState.stage != InstallStage.NONE
 		)
+		if (previous.stage == InstallStage.INSTALL_STARTED && installedVersionCode < previous.expectedVersionCode) {
+			StartupCrashLogger.logEvent(this, "InstallFlow callback possibly pending/absent after return: expected=${previous.expectedVersionCode} installed=$installedVersionCode")
+		}
 		when (action) {
 			InstallReconcileAction.MARK_SUCCESS_AND_CLEAR -> {
 				StartupCrashLogger.logEvent(this, "Installationsstatus bereinigt ($source): erfolgreich installiert code=$installedVersionCode name=$installedVersionName")
@@ -820,11 +838,18 @@ class MainActivity : AppCompatActivity() {
 		}
 	}
 
-	override fun onDestroy() {
+	private fun closeInstallDialogs(source: String) {
+		if (installPermissionDialog != null || installPromptDialog != null) {
+			StartupCrashLogger.logEvent(this, "InstallFlow close dialogs ($source)")
+		}
 		installPermissionDialog?.dismiss()
 		installPermissionDialog = null
 		installPromptDialog?.dismiss()
 		installPromptDialog = null
+	}
+
+	override fun onDestroy() {
+		closeInstallDialogs("onDestroy")
 		super.onDestroy()
 	}
 
