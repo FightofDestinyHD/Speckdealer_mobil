@@ -93,7 +93,11 @@ class OrderStorage(context: Context, namespaceSuffix: String = "prod") {
 		if (incoming.syncVersion < existing.syncVersion) return false
 		if (incoming.updatedAtUtcMs > existing.updatedAtUtcMs) return true
 		if (incoming.updatedAtUtcMs < existing.updatedAtUtcMs) return false
-		return incoming.timestampMs > existing.timestampMs
+		if (incoming.timestampMs > existing.timestampMs) return true
+		if (incoming.timestampMs < existing.timestampMs) return false
+		if (existing.sourceDeviceId.isBlank() && incoming.sourceDeviceId.isNotBlank()) return true
+		if (existing.status == OrderStatus.PENDING_SYNC.name && incoming.status != existing.status) return true
+		return false
 	}
 
 	private fun toJsonArray(list: List<OrderRecord>): JSONArray {

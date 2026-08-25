@@ -19,7 +19,8 @@
 			android:layout_height="wrap_content"
 			android:layout_weight="1"
 			android:textSize="32sp"
-			android:textStyle="bold" />
+			android:textStyle="bold"
+			android:textColor="#111111" />
 
 		<Button
 			android:id="@+id/orderItemDoneButton"

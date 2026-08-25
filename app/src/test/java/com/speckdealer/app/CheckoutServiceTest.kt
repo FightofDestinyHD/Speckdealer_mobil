@@ -19,6 +19,7 @@ class CheckoutServiceTest {
 	private val journal = mutableMapOf<String, CheckoutJournalEntry>()
 	private lateinit var checkoutService: CheckoutService
 	private var failOrdersOnce = false
+	private var persistedOrderCallbacks = mutableListOf<List<OrderRecord>>()
 
 	@Before
 	fun setup() {
@@ -26,6 +27,7 @@ class CheckoutServiceTest {
 		storedOrders.clear()
 		journal.clear()
 		failOrdersOnce = false
+		persistedOrderCallbacks.clear()
 		checkoutService = CheckoutService(
 			appendSales = { storedSales.addAll(it) },
 			appendOrders = {
@@ -58,7 +60,8 @@ class CheckoutServiceTest {
 				val prev = journal[txId] ?: CheckoutJournalEntry(txId, CheckoutJournalStatus.PENDING, emptyList(), emptyList())
 				journal[txId] = prev.copy(status = CheckoutJournalStatus.FAILED, errorMessage = error)
 			},
-			loadJournal = { txId -> journal[txId] }
+			loadJournal = { txId -> journal[txId] },
+			onOrdersPersisted = { persistedOrderCallbacks += it }
 		)
 	}
 
@@ -87,6 +90,9 @@ class CheckoutServiceTest {
 
 		assertEquals(1, storedSales.size)
 		assertEquals(1, storedOrders.size)
+		assertEquals(1, persistedOrderCallbacks.size)
+		assertEquals(1, persistedOrderCallbacks.first().size)
+		assertEquals("Snack", persistedOrderCallbacks.first().first().articleName)
 	}
 
 	@Test
@@ -109,6 +115,7 @@ class CheckoutServiceTest {
 		assertEquals(1, storedSales.size)
 		assertEquals(0, storedOrders.size)
 		assertTrue(second.alreadyPersisted)
+		assertEquals(0, persistedOrderCallbacks.size)
 	}
 
 	@Test
@@ -142,6 +149,8 @@ class CheckoutServiceTest {
 		assertEquals(1, storedSales.size)
 		assertEquals(1, storedOrders.size)
 		assertEquals(CheckoutJournalStatus.COMPLETED, journal["tx-fail"]?.status)
+		assertEquals(1, persistedOrderCallbacks.size)
+		assertEquals("tx-fail:order:0", persistedOrderCallbacks.first().first().id)
 	}
 
 	@Test

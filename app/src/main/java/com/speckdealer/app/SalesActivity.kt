@@ -19,6 +19,8 @@ import com.speckdealer.app.data.DailySalesStorage
 import com.speckdealer.app.data.OrderStorage
 import com.speckdealer.app.data.CheckoutJournalStorage
 import com.speckdealer.app.data.LocalOrderSyncRegistry
+import com.speckdealer.app.data.OrderSyncRepository
+import com.speckdealer.app.data.OrderSyncRepositoryRegistry
 import com.speckdealer.app.data.AppGraph
 import com.speckdealer.app.data.ArticleEntity
 import com.speckdealer.app.data.ArticleRepository
@@ -65,6 +67,7 @@ class SalesActivity : AppCompatActivity() {
 	private lateinit var cartAdapter: CartAdapter
 	private lateinit var checkoutJournalStorage: CheckoutJournalStorage
 	private lateinit var depositMovementStorage: DepositMovementStorage
+	private lateinit var orderSyncRepository: OrderSyncRepository
 	private var observeJob: Job? = null
 	private var selectedCategory: CategoryType = CategoryType.WEIN
 	private lateinit var dataMode: String
@@ -95,6 +98,7 @@ class SalesActivity : AppCompatActivity() {
 				AppDataMode.resolve(requestedDataMode)
 			}
 			repository = AppGraph.repository(this, dataMode)
+			orderSyncRepository = OrderSyncRepositoryRegistry.get(this, dataMode)
 			globalSettingsStorage = DataModeAwareStorageFactory.globalSettingsStorage(this, dataMode)
 			globalDepositSettings = globalSettingsStorage.loadDepositSettings()
 			val dailySalesStorage = DataModeAwareStorageFactory.dailySalesStorage(this, dataMode)
@@ -106,10 +110,11 @@ class SalesActivity : AppCompatActivity() {
 				dailySalesStorage = dailySalesStorage,
 				orderStorage = orderStorage,
 				journalStorage = checkoutJournalStorage,
-				onOrdersPersisted = {
-					if (it.isNotEmpty()) {
-						syncManager.syncNow()
-					}
+				onOrdersPersisted = { persistedOrders ->
+					if (persistedOrders.isEmpty()) return@CheckoutService
+					val enriched = orderSyncRepository.attachMetadataForLocal(persistedOrders)
+					orderSyncRepository.upsertIncoming(enriched)
+					syncManager.syncNow()
 				}
 			)
 			cartTotalText = findViewById(R.id.cartTotalText)
