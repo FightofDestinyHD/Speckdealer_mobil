@@ -105,13 +105,19 @@ fun sha256OfFile(file: File): String {
 }
 
 fun loadArchivePackageInfo(packageManager: PackageManager, apkFile: File): PackageInfo? {
+	val archivePath = apkFile.absolutePath
 	val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 		PackageManager.GET_SIGNING_CERTIFICATES
 	} else {
 		@Suppress("DEPRECATION")
 		PackageManager.GET_SIGNATURES
 	}
-	return packageManager.getPackageArchiveInfo(apkFile.absolutePath, flags)
+	val primary = packageManager.getPackageArchiveInfo(archivePath, flags) ?: return null
+	if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return primary
+	if (extractSigningDigests(primary).isNotEmpty()) return primary
+	@Suppress("DEPRECATION")
+	val legacy = packageManager.getPackageArchiveInfo(archivePath, PackageManager.GET_SIGNATURES)
+	return legacy ?: primary
 }
 
 fun loadInstalledPackageInfo(packageManager: PackageManager, packageName: String): PackageInfo? {
@@ -129,8 +135,16 @@ fun loadInstalledPackageInfo(packageManager: PackageManager, packageName: String
 
 fun extractSigningDigests(packageInfo: PackageInfo): Set<String> {
 	val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-		val signingInfo = packageInfo.signingInfo ?: return emptySet()
-		if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners else signingInfo.signingCertificateHistory
+		val signingInfo = packageInfo.signingInfo
+		val fromSigningInfo = signingInfo?.let {
+			if (it.hasMultipleSigners()) it.apkContentsSigners else it.signingCertificateHistory
+		}
+		if (!fromSigningInfo.isNullOrEmpty()) {
+			fromSigningInfo
+		} else {
+			@Suppress("DEPRECATION")
+			packageInfo.signatures
+		}
 	} else {
 		@Suppress("DEPRECATION")
 		packageInfo.signatures
